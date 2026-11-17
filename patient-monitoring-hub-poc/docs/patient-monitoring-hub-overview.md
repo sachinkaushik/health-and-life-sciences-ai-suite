@@ -299,33 +299,51 @@ Stop with `docker compose down` (add `-v` to delete the stored data).
 ## Open questions
 
 For the app owner ([ITEP-97802](https://jira.devtools.intel.com/browse/ITEP-97802)).
+Ordered by impact: the first group decides what the sample is for.
 
-**Scope and ownership**
-1. What does "done" mean for 2027.0: move code and docs only, or also
-   re-validate and change the setup?
-2. Folder name and place in the suite (for example `patient-monitoring-hub/`)?
-3. What happens to the OEP copy: remove, replace with a pointer, or keep both?
-   Who owns the code after the move?
+**Value and targets (highest impact)**
+1. What **Intel value** should the sample show? Today nothing in the software is
+   Intel-specific. Options: workload consolidation on one Core Ultra PC,
+   deterministic networking (TSN / TCC), or AI at the edge.
+2. Should the hub PC **consolidate more workloads**, for example running the
+   Multi-Modal AI app as another VM / container on the same Proxmox host, to make
+   the consolidation story real?
+3. What are the **pass/fail targets**: maximum end-to-end delay, allowed message
+   loss, patients per hub, hubs (wards) per central server?
+4. Is **Wi-Fi** a supported mode? At 30 patients the published Wi-Fi delay
+   reaches 0.84 s average and 2.2 s worst case; what patient count must Wi-Fi
+   handle?
 
-**Setup**
-4. Keep the **five-machine Proxmox + OpenWRT** setup as the reference, or also
-   provide a **single-machine Docker mode** (as in `local/`) for demos and
-   developers?
-5. Is Proxmox / OpenWRT a requirement (the consolidation story), or optional?
-6. Should we add proxy support and configurable subnets and IDs (setup fails on
-   Intel's network today)?
-7. Which hardware and OS to validate?
+**Use case**
+5. Should the hub stay a data relay, or also act at the edge, such as **alerts
+   on abnormal vitals**, disconnect alerts, or AI analytics (today it has no AI
+   and no alarms)?
+6. Must the hub **store and forward**: buffer data while the central server is
+   down and send it after the link returns? Today the hub keeps its local copy,
+   but data that fails to reach the server is not replayed.
+7. Which real bedside devices and protocols should it support: MQTT only, or
+   **HL7 / FHIR / SDC**? Should the central server export to an EMR?
 
-**Integration**
+**Integration with the suite**
 8. Should other suite apps (Multi-Modal, NICU Warmer) **send data to the hub**?
    Over MQTT, or SDC ([ITEP-97821](https://jira.devtools.intel.com/browse/ITEP-97821))?
 9. Should the hub accept messages with only some vitals (today it drops any
    message without all five)?
-10. Is testing with a real medical device expected, or is the simulator enough?
 
-**Benchmark and quality**
-11. Is the current benchmark (delay only) enough, or are CPU, memory or power
-    numbers, or runs above 30 patients, needed?
-12. Are the known gaps in scope: TLS / device authentication for MQTT,
-    disconnect alerts, the bridge health-check bug?
-13. Are there security, license or scan requirements before release?
+**Security and data**
+10. What security is required for a hospital network: **TLS and device
+    authentication** for MQTT, access control on the databases, patient-data
+    handling? Today MQTT is plaintext with anonymous access.
+
+**Setup**
+11. Keep the **five-machine Proxmox + OpenWRT** setup as the reference, or also
+    provide a **single-machine Docker mode** (as in `local/`) for demos and
+    developers?
+12. Should we add proxy support and configurable subnets and IDs (setup fails on
+    Intel's network today)?
+
+**Benchmark and validation**
+13. Is the current benchmark (delay only) enough, or are **CPU, memory and
+    power** numbers needed to show hub sizing on Intel hardware?
+14. Is testing with a real medical device expected, or is the simulator enough?
+    Which hardware and OS to validate?

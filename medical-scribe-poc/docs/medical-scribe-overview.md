@@ -240,37 +240,42 @@ bash start.sh                  # web UI
 
 For the app owner ([ITEP-97800](https://jira.devtools.intel.com/browse/ITEP-97800)).
 
-**Scope and ownership**
-1. What does "done" mean for 2027.0: move code and docs only, or also
-   re-validate and change the setup?
-2. Move the **exported standalone scribe** (only its services, as in this folder)
-   or the **whole Edge AI Demo Studio**?
-3. Folder name and place in the suite: `medical-scribe/` or
-   `medical-terminal/medical-scribe/`?
-4. What happens to the OEP copy: remove, replace with a pointer, or keep both?
-   Who owns the code after the move?
-5. Who keeps the suite copy in sync with Demo Studio when it changes?
+**Deployment and use case**
+
+1. Which device should it target: a medical cart, a bedside terminal, or an exam-room PC? What is the minimum hardware (Intel GPU / NPU, RAM)? Qwen3-8B INT8 alone needs about 9 GB.
+
+2. Is it necessary to run the scribe in a **virtualized setup** (for example a Proxmox VM or container, consolidated with other workloads such as the PM Hub on one PC), or does it run directly on the terminal?
+
+3. One doctor per PC, or one shared server for several exam rooms (several sessions at the same time)?
+
+4. Must it work fully **offline** (models pre-installed, no internet at runtime) on a hospital network?
+
+5. Should it connect to other systems, for example send SOAP notes to an EMR (HL7 / FHIR), or link with other suite apps (Multi-Modal, PM Hub)?
 
 **Setup and platforms**
-6. Keep Demo Studio's native `setup.sh` / `start.sh`, or follow the suite's
-   Docker + `make` pattern?
-7. Is the desktop app (Electron) and native Windows support required, or is the
-   web UI on Linux enough?
-8. Which hardware and OS to validate (Core Ultra models; Ubuntu 24.04,
-   Windows 11)?
+
+6. Keep Demo Studio's native `setup.sh` / `start.sh`, or follow the suite's Docker + `make` pattern?
+
+7. Is the desktop app (Electron) and native Windows support required, or is the web UI on Linux enough?
+
+8. Which hardware and OS to validate (Core Ultra models; Ubuntu 24.04, Windows 11)?
 
 **Models and devices**
+
 9. Which models are official (Whisper large-v3-turbo, pyannote, Qwen3-8B INT8)?
-   Are they licensed for commercial use, and is the gated pyannote model
-   acceptable for customers?
-10. Which devices must be validated: GPU only, or must the **NPU** work too
-    (large Whisper models fail on the NPU today)?
-11. Which languages to validate: English, Malay, Chinese, mixed? Is the
-    China-specific speech recognition (2027.1 roadmap) in scope now?
-12. Are there accuracy or speed targets for transcription, speaker labels or
-    note quality? Is there a test set?
+
+10. Are these models licensed for commercial use, and is the gated pyannote model (Hugging Face token) acceptable for customers?
+
+11. Which devices must be validated: GPU only, or must the **NPU** work too (large Whisper models fail on the NPU today)?
+
+12. Which languages to validate: English, Malay, Chinese, mixed?
+
+13. Is the China-specific speech recognition (2027.1 roadmap) in scope now?
+
+14. Are there accuracy or speed targets for transcription, speaker labels or note quality? Is there a test set?
 
 **Data and security**
-13. What is required for storing, encrypting and deleting recordings,
-    transcripts and notes (the local SQLite store has no encryption today)?
-14. Are there security, license or scan requirements before release?
+
+15. What is required for storing, encrypting and deleting recordings, transcripts and notes (the local SQLite store has no encryption today)?
+
+16. Are there security, license or scan requirements before release?
