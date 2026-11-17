@@ -58,7 +58,8 @@ there is none.
 EOF
 }
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Lives in scripts/; SCRIPT_DIR is the project root.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 THIRDPARTY_DIR="$SCRIPT_DIR/thirdparty"
 LOG_DIR="$SCRIPT_DIR/logs/setup"
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"

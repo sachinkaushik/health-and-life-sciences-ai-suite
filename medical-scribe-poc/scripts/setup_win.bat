@@ -4,5 +4,5 @@ REM SPDX-License-Identifier: Apache-2.0
 
 where pwsh.exe >nul 2>nul
 if errorlevel 1 (set "PS_EXE=powershell.exe") else (set "PS_EXE=pwsh.exe")
-%PS_EXE% -ExecutionPolicy Bypass -NoProfile -File "%~dp0\scripts\win\start.ps1"
+%PS_EXE% -ExecutionPolicy Bypass -NoProfile -File "%~dp0\win\setup.ps1" %*
 exit /b %ERRORLEVEL%

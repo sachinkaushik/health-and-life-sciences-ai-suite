@@ -2,7 +2,8 @@
 # Copyright (C) 2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0 
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Lives in scripts/; SCRIPT_DIR is the project root.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 NODE_PATH="$(cd "$SCRIPT_DIR/thirdparty/node/bin" && pwd)"
 FRONTEND_DIR="$(cd "$SCRIPT_DIR/frontend" && pwd)"
 
