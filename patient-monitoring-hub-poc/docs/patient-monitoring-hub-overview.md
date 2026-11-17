@@ -336,14 +336,18 @@ Ordered by impact: the first group decides what the sample is for.
     handling? Today MQTT is plaintext with anonymous access.
 
 **Setup**
-11. Keep the **five-machine Proxmox + OpenWRT** setup as the reference, or also
+11. Is it **necessary to run the hub on Proxmox** (with the OpenWRT VM), or can
+    it run on a plain Ubuntu PC with Docker and a normal router / access point?
+    Proxmox needs a wiped PC and many manual steps, but the hub software itself
+    does not depend on it (see `local/`).
+12. Keep the **five-machine Proxmox + OpenWRT** setup as the reference, or also
     provide a **single-machine Docker mode** (as in `local/`) for demos and
     developers?
-12. Should we add proxy support and configurable subnets and IDs (setup fails on
+13. Should we add proxy support and configurable subnets and IDs (setup fails on
     Intel's network today)?
 
 **Benchmark and validation**
-13. Is the current benchmark (delay only) enough, or are **CPU, memory and
+14. Is the current benchmark (delay only) enough, or are **CPU, memory and
     power** numbers needed to show hub sizing on Intel hardware?
-14. Is testing with a real medical device expected, or is the simulator enough?
+15. Is testing with a real medical device expected, or is the simulator enough?
     Which hardware and OS to validate?
