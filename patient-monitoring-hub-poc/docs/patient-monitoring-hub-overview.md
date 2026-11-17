@@ -295,3 +295,37 @@ Stop with `docker compose down` (add `-v` to delete the stored data).
   because its health check uses `pgrep`, which is missing in the
   `python:3.11-slim` image; the bridge itself works.
 - **Not for clinical use:** reference implementation only.
+
+## Open questions
+
+For the app owner ([ITEP-97802](https://jira.devtools.intel.com/browse/ITEP-97802)).
+
+**Scope and ownership**
+1. What does "done" mean for 2027.0: move code and docs only, or also
+   re-validate and change the setup?
+2. Folder name and place in the suite (for example `patient-monitoring-hub/`)?
+3. What happens to the OEP copy: remove, replace with a pointer, or keep both?
+   Who owns the code after the move?
+
+**Setup**
+4. Keep the **five-machine Proxmox + OpenWRT** setup as the reference, or also
+   provide a **single-machine Docker mode** (as in `local/`) for demos and
+   developers?
+5. Is Proxmox / OpenWRT a requirement (the consolidation story), or optional?
+6. Should we add proxy support and configurable subnets and IDs (setup fails on
+   Intel's network today)?
+7. Which hardware and OS to validate?
+
+**Integration**
+8. Should other suite apps (Multi-Modal, NICU Warmer) **send data to the hub**?
+   Over MQTT, or SDC ([ITEP-97821](https://jira.devtools.intel.com/browse/ITEP-97821))?
+9. Should the hub accept messages with only some vitals (today it drops any
+   message without all five)?
+10. Is testing with a real medical device expected, or is the simulator enough?
+
+**Benchmark and quality**
+11. Is the current benchmark (delay only) enough, or are CPU, memory or power
+    numbers, or runs above 30 patients, needed?
+12. Are the known gaps in scope: TLS / device authentication for MQTT,
+    disconnect alerts, the bridge health-check bug?
+13. Are there security, license or scan requirements before release?

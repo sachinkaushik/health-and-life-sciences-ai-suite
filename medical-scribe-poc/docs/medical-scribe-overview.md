@@ -66,7 +66,8 @@ Software stack:
 Notes:
 - The pyannote model is gated on Hugging Face: accept its terms and provide a
   Hugging Face token in the app.
-- Models are downloaded at setup or first use; they are not part of this folder.
+- Models are downloaded when a service is started in the web UI; they are not
+  part of this folder (see [How model download works](#how-model-download-works)).
 
 ## How it works
 
@@ -98,6 +99,59 @@ flowchart LR
    text-generation service; the note streams back to the page.
 5. **Save:** sessions, transcripts, notes and doctor profiles are stored by the
    `medical-scribe-database` service in SQLite.
+
+## Intel optimization and devices
+
+Yes, the scribe is built on Intel-optimized software. Every AI step runs on an
+Intel inference stack, and the device (CPU, GPU or NPU) is chosen per service in
+the web UI. NPU support depends on the service. (Based on the code and
+configuration; not yet benchmarked here.)
+
+| Step | What runs it | Intel software | Devices | Recommended |
+|---|---|---|---|---|
+| **Speech to text** (Whisper) | Two backends: **OpenVINO GenAI · OEP** (default, the OEP audio service) or **OpenVINO Model Server** (also runs Qwen3-ASR) | OpenVINO 2026.2, OpenVINO GenAI, OVMS | AUTO, CPU, GPU, **NPU** | GPU |
+| **Diarization** (pyannote) | PyTorch with Intel XPU builds (`download.pytorch.org/whl/xpu`) | PyTorch on Intel GPU (XPU); not OpenVINO | CPU, XPU (Intel GPU) | XPU |
+| **SOAP note** (LLM) | `multiserve` engine: **OpenVINO Model Server** for OpenVINO models, or **llama.cpp** for GGUF models | OpenVINO GenAI / OVMS; llama.cpp with **SYCL** (Intel GPU runtime) or Vulkan | CPU, GPU, **NPU** (OVMS) | GPU, Qwen3-8B INT8 |
+| Voice detection (live mode) | silero-vad | — | CPU | CPU |
+| Session database | FastAPI + SQLite | — | CPU | — |
+| Model conversion | `optimum-cli export openvino` (optimum-intel, NNCF) | Hugging Face → OpenVINO IR, INT8 / INT4 | — | — |
+| GPU monitoring | qmassa | Intel GPU usage and power | — | — |
+
+NPU limits found in the code:
+- **Speech to text:** Whisper Large v3 and v3 Turbo are marked "no NPU": they
+  compile for the NPU 3720 but fail at inference (driver limit). Smaller Whisper
+  models (medium, small, tiny) can use the NPU.
+- **LLM:** the OVMS NPU plugin limits some Qwen3 models to about 8k tokens of
+  context; the engine applies this limit automatically.
+- **Diarization:** CPU or Intel GPU only.
+
+The recommended setup therefore runs everything on the **Intel GPU**, with the
+NPU as an option for smaller models.
+
+## How model download works
+
+All workers fetch weights through one shared package,
+`workers/common/downloader` (`model_downloader`), with four methods:
+
+| Method | Used for | How |
+|---|---|---|
+| `oep` | Hugging Face (plus other upstream plugins) | Intel's **OEP model-download microservice** (`open-edge-platform/edge-ai-libraries`), used directly as a Python module — no separate container |
+| `ovms --pull` | LLM and the OVMS speech-to-text backend | OpenVINO Model Server **downloads and converts** the model in one step |
+| `modelscope` | Alternative source (for example in China) | ModelScope SDK |
+| `http` | Single files, Open Model Zoo IR pairs | Plain HTTPS download, atomic write, optional sha256 |
+
+1. **When:** downloads start when a service is **started in the web UI**, not
+   during `setup.sh`; the UI shows the progress.
+2. **Pre-converted models** (for example `OpenVINO/Qwen3-8B-int8-ov`) are
+   downloaded ready to run.
+3. **Other Hugging Face models** are converted to OpenVINO IR with the chosen
+   weight format (INT4, INT8 or FP16) during `ovms --pull`.
+4. **Gated models** such as pyannote need the terms accepted on Hugging Face and
+   a **Hugging Face token** set in the app.
+5. **Mirrors:** `HF_ENDPOINT` in `frontend/.env` can point downloads at a
+   mirror, or ModelScope can be used as the source.
+6. **Storage:** LLM files go under `workers/engines/multiserve/models/` (`OV/`
+   for OpenVINO, `GGUF/` for llama.cpp); this folder is git-ignored.
 
 ## What we pulled from upstream
 
@@ -181,3 +235,42 @@ bash start.sh                  # web UI
 - **Not for clinical use:** reference implementation only.
 - **Sync with upstream:** Demo Studio changes often; re-run the export and
   compare when updating.
+
+## Open questions
+
+For the app owner ([ITEP-97800](https://jira.devtools.intel.com/browse/ITEP-97800)).
+
+**Scope and ownership**
+1. What does "done" mean for 2027.0: move code and docs only, or also
+   re-validate and change the setup?
+2. Move the **exported standalone scribe** (only its services, as in this folder)
+   or the **whole Edge AI Demo Studio**?
+3. Folder name and place in the suite: `medical-scribe/` or
+   `medical-terminal/medical-scribe/`?
+4. What happens to the OEP copy: remove, replace with a pointer, or keep both?
+   Who owns the code after the move?
+5. Who keeps the suite copy in sync with Demo Studio when it changes?
+
+**Setup and platforms**
+6. Keep Demo Studio's native `setup.sh` / `start.sh`, or follow the suite's
+   Docker + `make` pattern?
+7. Is the desktop app (Electron) and native Windows support required, or is the
+   web UI on Linux enough?
+8. Which hardware and OS to validate (Core Ultra models; Ubuntu 24.04,
+   Windows 11)?
+
+**Models and devices**
+9. Which models are official (Whisper large-v3-turbo, pyannote, Qwen3-8B INT8)?
+   Are they licensed for commercial use, and is the gated pyannote model
+   acceptable for customers?
+10. Which devices must be validated: GPU only, or must the **NPU** work too
+    (large Whisper models fail on the NPU today)?
+11. Which languages to validate: English, Malay, Chinese, mixed? Is the
+    China-specific speech recognition (2027.1 roadmap) in scope now?
+12. Are there accuracy or speed targets for transcription, speaker labels or
+    note quality? Is there a test set?
+
+**Data and security**
+13. What is required for storing, encrypting and deleting recordings,
+    transcripts and notes (the local SQLite store has no encryption today)?
+14. Are there security, license or scan requirements before release?
