@@ -1,0 +1,51 @@
+{
+  "generatedAt": "2026-11-17T08:40:44.904Z",
+  "samples": [
+    {
+      "id": "medical-scribe",
+      "deps": [
+        {
+          "serviceId": "medical-scribe-database",
+          "role": "required"
+        },
+        {
+          "serviceId": "speech-to-text",
+          "role": "required"
+        },
+        {
+          "serviceId": "diarization",
+          "role": "required"
+        },
+        {
+          "serviceId": "text-generation",
+          "role": "required"
+        }
+      ]
+    }
+  ],
+  "requestedServices": [],
+  "services": {
+    "required": [
+      "diarization",
+      "medical-scribe-database",
+      "speech-to-text",
+      "text-generation"
+    ],
+    "optional": [],
+    "included": [
+      "diarization",
+      "medical-scribe-database",
+      "speech-to-text",
+      "text-generation"
+    ]
+  },
+  "workers": [
+    "common",
+    "engines/multiserve",
+    "services/diarization",
+    "services/helper",
+    "services/medical-scribe-database",
+    "services/speech-to-text"
+  ],
+  "includeOptional": true
+}

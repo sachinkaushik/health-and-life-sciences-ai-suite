@@ -1,0 +1,19 @@
+# Python virtual environments created by the setup scripts
+server_env/
+mqtt_venv/
+/scripts/nurse_dashboard/nurse_dashboard/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Benchmark output (watcher.py writes ./latency_logs/<timestamp>.log)
+latency_logs/
+*.log
+
+# Local secrets and overrides
+.env
+*.local.env
+
+# Dashboard copy generated for the single-machine run
+/local/nurse_dashboard_local.py

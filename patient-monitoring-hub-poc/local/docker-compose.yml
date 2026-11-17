@@ -1,0 +1,67 @@
+# Single-machine run: hub (MQTT broker + InfluxDB + bridge) and central server InfluxDB on one host.
+# Service names mqtt-broker / influxdb are hard-coded in the bridge, so they are kept.
+name: pmhub
+
+services:
+  mqtt-broker:
+    image: eclipse-mosquitto:2
+    container_name: pmhub-mqtt
+    restart: unless-stopped
+    ports:
+      - "${MQTT_PORT:-1884}:1883"
+    volumes:
+      - ../scripts/monitoring_hub/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+
+  influxdb:
+    image: influxdb:2.7
+    container_name: pmhub-hub-influxdb
+    restart: unless-stopped
+    ports:
+      - "${HUB_INFLUX_PORT:-8086}:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: user
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUX_PASSWORD}
+      DOCKER_INFLUXDB_INIT_ORG: hospital
+      DOCKER_INFLUXDB_INIT_BUCKET: patient_data
+      DOCKER_INFLUXDB_INIT_RETENTION: 5d
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${HUB_TOKEN}
+    volumes:
+      - hub_influx:/var/lib/influxdb2
+
+  server-influxdb:
+    image: influxdb:2.7
+    container_name: pmhub-server-influxdb
+    restart: unless-stopped
+    ports:
+      - "${SERVER_INFLUX_PORT:-8087}:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: user
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUX_PASSWORD}
+      DOCKER_INFLUXDB_INIT_ORG: hospital
+      DOCKER_INFLUXDB_INIT_BUCKET: patient_data
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${SERVER_TOKEN}
+    volumes:
+      - server_influx:/var/lib/influxdb2
+
+  mqtt-influx-bridge:
+    build:
+      context: ../scripts/monitoring_hub/bridge
+      args:
+        http_proxy: ${http_proxy:-}
+        https_proxy: ${https_proxy:-}
+    container_name: pmhub-bridge
+    restart: unless-stopped
+    environment:
+      HUB_TOKEN: ${HUB_TOKEN}
+      SERVER_INFLUXDB_URL: http://server-influxdb:8086
+      SERVER_TOKEN: ${SERVER_TOKEN}
+    depends_on:
+      - mqtt-broker
+      - influxdb
+      - server-influxdb
+
+volumes:
+  hub_influx:
+  server_influx:

@@ -1,0 +1,189 @@
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+$script:originalLocation = Get-Location
+$SCRIPT_DIR = $PSScriptRoot
+$PROJECT_ROOT = Split-Path (Split-Path $SCRIPT_DIR -Parent) -Parent
+$FRONTEND_DIR = Join-Path $PROJECT_ROOT "frontend"
+Push-Location -Path $FRONTEND_DIR
+
+
+$script:originalPath = $null
+$script:nodePathAdded = $false
+
+function Add-FrontendEnv() {
+    # Ensure .env is created based on .env.example in frontend
+    $envPath = Join-Path $FRONTEND_DIR ".env"
+    $envExamplePath = Join-Path $FRONTEND_DIR ".env.example"
+    if (-not (Test-Path $envPath)) {
+        if (Test-Path $envExamplePath) {
+            Copy-Item $envExamplePath $envPath
+            # Generate a random 32-byte hex string for PAYLOAD_SECRET
+            $payloadSecret = [System.BitConverter]::ToString((1..32 | ForEach-Object { Get-Random -Minimum 0 -Maximum 256 })) -replace '-', ''
+            Add-Content $envPath "PAYLOAD_SECRET=$payloadSecret"
+            Write-Host ".env created and PAYLOAD_SECRET added." -ForegroundColor Green
+        } else {
+            Write-Host ".env.example not found. Skipping .env creation." -ForegroundColor Yellow
+        }
+    }
+}
+
+function Add-NodeToPath {
+    param([string]$NodeBinPath)
+    
+    if (-not $script:nodePathAdded -and (Test-Path $NodeBinPath)) {
+        $script:originalPath = $env:PATH
+        $env:PATH = "$NodeBinPath;$env:PATH"
+        $script:nodePathAdded = $true
+        Write-Host "Temporarily added Node.js to PATH: $NodeBinPath" -ForegroundColor Green
+        return $true
+    }
+    return $false
+}
+
+function Remove-NodeFromPath {
+    if ($script:nodePathAdded -and $script:originalPath) {
+        $env:PATH = $script:originalPath
+        $script:nodePathAdded = $false
+        Write-Host "Restored original PATH" -ForegroundColor Green
+    }
+}
+
+function Get-NodePaths {
+    # Get the root directory (parent of frontend)
+    $rootDir = Split-Path $PWD -Parent
+    $nodeDir = Join-Path $rootDir "thirdparty\node"
+    $nodeExecutable = Join-Path $nodeDir "node.exe"
+    
+    return @{
+        NodeDir = $nodeDir
+        NodeExecutable = $nodeExecutable
+    }
+}
+
+
+function Test-NodeInstalled {
+    Write-Host "Checking Node.js installation..." -ForegroundColor Yellow
+    
+    $nodePaths = Get-NodePaths
+    
+    if (Test-Path $nodePaths.NodeExecutable) {
+        Write-Host "Using Node.js from: $($nodePaths.NodeExecutable)" -ForegroundColor Green
+        try {
+            & $nodePaths.NodeExecutable --version | Out-Null
+            Write-Host "Node.js is ready to use." -ForegroundColor Green
+            
+            Add-NodeToPath -NodeBinPath $nodePaths.NodeDir | Out-Null
+            return $true
+        } catch {
+            Write-Host "ERROR: Node.js executable is not working properly." -ForegroundColor Red
+            throw "Node.js executable test failed"
+        }
+    } else {
+        Write-Host "Node.js not found in thirdparty directory. Checking system PATH..." -ForegroundColor Yellow
+        try {
+            node --version | Out-Null
+            Write-Host "Node.js is installed in system PATH." -ForegroundColor Green
+            return $true
+        } catch {
+            Write-Host "ERROR: Node.js is not installed or not in PATH." -ForegroundColor Red
+            Write-Host "Please run the root setup.ps1 first to install Node.js, or install Node.js manually:" -ForegroundColor Yellow
+            Write-Host "  - Download from: https://nodejs.org/en/download" -ForegroundColor White
+            Read-Host "Press Enter to continue..."
+            exit 1
+        }
+    }
+}
+
+function Get-FrontendPort {
+    $envPath = Join-Path $FRONTEND_DIR ".env"
+    if (Test-Path $envPath) {
+        $portLine = Get-Content $envPath | Where-Object { $_ -match '^PORT=' } | Select-Object -Last 1
+        if ($portLine) {
+            $port = ($portLine -replace '^PORT=', '').Trim().Trim('"')
+            if ($port) { return $port }
+        }
+    }
+    return "8080"
+}
+
+function Wait-FrontendReady {
+    param(
+        [System.Diagnostics.Process]$Process,
+        [string]$Url,
+        [int]$TimeoutSeconds = 240
+    )
+
+    Write-Host "Waiting for frontend to become ready at $Url ..." -ForegroundColor Yellow
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    while ([DateTime]::UtcNow -lt $deadline) {
+        if ($Process.HasExited) {
+            Write-Host "ERROR: Frontend process exited before becoming ready." -ForegroundColor Red
+            return $false
+        }
+        try {
+            $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 10
+            if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400) {
+                return $true
+            }
+        } catch {
+            # Server not ready yet; keep polling
+        }
+        Start-Sleep -Seconds 2
+    }
+    Write-Host "ERROR: Frontend did not respond at $Url within $TimeoutSeconds seconds." -ForegroundColor Red
+    return $false
+}
+
+function Start-Frontend {
+    Write-Host "Starting frontend..." -ForegroundColor Green
+
+    if (-not (Test-NodeInstalled)) {
+        Write-Host "Node.js is not installed. Exiting setup." -ForegroundColor Red
+        exit 1
+    }
+
+    $frontendUrl = "http://127.0.0.1:$(Get-FrontendPort)"
+    # Probe an API route that calls getPayload() so Payload runs onInit;
+    # the root page is statically prerendered and never touches Payload.
+    $healthcheckUrl = "$frontendUrl/api/services"
+
+    # Start the frontend server in the background; its logs stream to this console
+    try {
+        $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "npm run start" `
+            -WorkingDirectory $FRONTEND_DIR -NoNewWindow -PassThru
+        # Without a cached handle, ExitCode reads back empty after the exit.
+        $null = $proc.Handle
+    } catch {
+        Write-Host "ERROR: Failed to start frontend." -ForegroundColor Red
+        throw $_
+    }
+
+    if (Wait-FrontendReady -Process $proc -Url $healthcheckUrl) {
+        Write-Host "Frontend start completed. Server is ready at $frontendUrl" -ForegroundColor Green
+    }
+
+    # Keep streaming frontend logs until the server stops
+    $proc.WaitForExit()
+    if ($proc.ExitCode -ne 0) {
+        throw "Frontend exited with code $($proc.ExitCode)"
+    }
+}
+
+try {
+    Write-Host "Starting setup..." -ForegroundColor Green
+    Add-FrontendEnv
+    Start-Frontend
+    Write-Host "Setup completed successfully!" -ForegroundColor Green
+    exit 0
+} catch {
+    Write-Host "Setup failed: $($_.Exception.Message)" -ForegroundColor Red
+    Read-Host "Press Enter to continue..."
+    exit 1
+} finally {
+    Remove-NodeFromPath
+    if ($script:originalLocation) {
+        Pop-Location
+        Write-Host "Returned to original directory: $script:originalLocation" -ForegroundColor Green
+    }
+}
