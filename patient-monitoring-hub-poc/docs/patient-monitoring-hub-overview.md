@@ -255,29 +255,22 @@ server can run as containers on one PC without Proxmox or OpenWRT:
 - run the simulator with `--broker localhost` and the dashboard against the
   server InfluxDB.
 
-This setup is in `local/docker-compose.yml` (MQTT on 1884, hub InfluxDB on 8086,
-server InfluxDB on 8087):
+This setup is in `local/` (MQTT on 1884, hub InfluxDB on 8086, server InfluxDB
+on 8087, dashboard on 8501), driven by a Makefile:
 
 ```bash
 cd local
-# .env with INFLUX_PASSWORD, HUB_TOKEN and SERVER_TOKEN (random values; not committed)
-docker compose up -d --build
-
-python3 -m venv .venv && . .venv/bin/activate
-pip install paho-mqtt==2.1.0 influxdb-client==1.50.0 streamlit pandas pytz streamlit-autorefresh
-
-# dashboard: local copy pointed at the server InfluxDB
-sed -e "s|http://<SERVER_IP>:8086|http://localhost:8087|" \
-    -e "s|\"<TOKEN>\"|__import__('os').environ['SERVER_TOKEN']|" \
-    ../scripts/nurse_dashboard/nurse_dashboard.py > nurse_dashboard_local.py
-set -a && . ./.env && set +a
-streamlit run nurse_dashboard_local.py --server.port 8501 &
-
-# simulator: 5 patients for 60 s
-python ../scripts/patient_device/multi_channels_test.py --broker localhost --port 1884 --channels 5 --duration 60
+make run        # creates .env (random tokens) and .venv if missing, starts containers + dashboard
+make simulate   # 5 patients for 300 s; change with PATIENTS=10 DURATION=120
+make status     # containers and dashboard state
+make logs       # follow the bridge logs
+make stop       # stop dashboard and containers (data kept)
+make clean      # also delete data volumes, venv and generated files
 ```
 
-Stop with `docker compose down` (add `-v` to delete the stored data).
+`make demo` runs `make run` and then `make simulate`. Ports can be changed with
+`MQTT_PORT=` and `DASHBOARD_PORT=`. Open the dashboard at
+`http://localhost:8501`.
 
 ## Points to note
 

@@ -15,5 +15,6 @@ latency_logs/
 .env
 *.local.env
 
-# Dashboard copy generated for the single-machine run
+# Dashboard copy and PID file generated for the single-machine run
 /local/nurse_dashboard_local.py
+/local/.dashboard.pid
