@@ -224,7 +224,7 @@ export async function getBeds(): Promise<{ enabled: boolean; beds: BedInfo[] }> 
   return jsonOrThrow(await fetch(`${BASE_URL}/beds`, { cache: 'no-store' }));
 }
 
-export async function addDevice(type: DeviceKind): Promise<unknown> {
+export async function addDevice(type: DeviceKind): Promise<{ bed_id: string }> {
   return jsonOrThrow(await fetch(`${BASE_URL}/devices`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

@@ -102,8 +102,9 @@ curl -s -X DELETE http://localhost:8001/devices/bed-02
 curl -s http://localhost:8001/beds                                       # beds sdc-bridge is subscribed to
 ```
 
-`sdc-bridge` picks up new beds on its next discovery round (about 5 s). It drops removed
-beds when they send WS-Discovery Bye or end their subscriptions. Any other SDC provider in
+`sdc-bridge` picks up a new bed as soon as it announces itself with WS-Discovery Hello
+(usually 1–2 s). It drops removed beds when they send WS-Discovery Bye or end their
+subscriptions. A full probe every 5 s catches any announcement that was missed. Any other SDC provider in
 facility `MMPM` that uses the codes below also appears as a bed. Because the handles follow the
 SDC-Dashboard convention, the SDC-Dashboard central station can show the gateway's beds too.
 
@@ -138,8 +139,9 @@ sequenceDiagram
     GW->>GW: create bed-NN, MDIB, SDC provider, simulator
     GW-->>UI: 201 bed info (via aggregator and nginx)
     Note over GW,BR: WS-Discovery (UDP 3702)
-    BR->>GW: discovery round (every 5 s), GetMdib, subscribe
-    UI->>NG: GET /api/beds (1 s after the click, then every 3 s)
+    GW-)BR: WS-Discovery Hello
+    BR->>GW: GetMdib, subscribe
+    UI->>NG: GET /api/beds (every 1 s while a bed is pending, else every 3 s)
     NG->>AG: GET /beds
     AG->>BR: GET /beds
     BR-->>UI: bed list including the new bed
@@ -152,10 +154,14 @@ sequenceDiagram
 
 1. The devices panel (`CentralStation/DevicesPanel.tsx`) appears only when `GET /api/beds`
    succeeds, which happens only in SDC mode. In OpenICE mode, the view shows a message
-   instead of the buttons.
+   instead of the buttons. The buttons are disabled until **Start** is pressed. Bed tiles,
+   and with them the ✕ remove buttons, are also shown only while running, so beds can be
+   added or removed only after Start. Beds created at start-up through `SDC_EXTRA_DEVICES`
+   are not affected.
 2. A click calls `onAdd('monitor')` or `onAdd('multimodal')` in
    `CentralStation/CentralStation.tsx`.
-3. While the request runs, both buttons are disabled and any previous error message is cleared.
+3. While the request runs, both buttons are disabled, the clicked one shows a spinner and
+   *Adding…*, and any previous error message is cleared.
 4. `api.addDevice()` (`services/api.ts`) sends `POST /api/devices` with the body
    `{"type": "monitor"}` or `{"type": "multimodal"}`.
 5. nginx in the `ui` container strips the `/api/` prefix and forwards the request to the
@@ -239,16 +245,24 @@ same host can reach it.
 
 #### Step 4: The UI handles the response
 
-25. On success, the UI requests `GET /api/beds` again after 1 s. It also polls every 3 s.
+25. On success, the UI remembers the returned `bed_id` as *pending* and shows the wait:
+    - A spinner with *Adding bed-NN (Patient monitor)…* or
+      *Adding bed-NN (Multimodal monitor)…* appears next to the buttons.
+    - While running, a dashed placeholder tile with a spinner appears in the grid.
+    - The UI polls `GET /api/beds` every 1 s, instead of every 3 s, until no bed is pending.
 26. On failure, the error's `detail` text, for example `device limit reached (16)`, appears
     in red next to the buttons.
 27. The bed list comes from `sdc-bridge`, not from the gateway. The new bed therefore
     appears, and the bed count goes up, only after the bridge subscribes to it in Step 5.
+    The pending indicators then disappear. If the bed isn't listed within 30 s, they
+    disappear anyway and the panel shows *bed-NN not discovered yet. Check the sdc-bridge
+    logs.*
 
 #### Step 5: sdc-bridge discovers and subscribes
 
-28. Every 5 s, the bridge clears its WS-Discovery cache, probes for SDC medical devices, and
-    waits 3 s for answers.
+28. The bridge listens for WS-Discovery Hello messages from SDC medical devices and handles
+    each one immediately. As a fallback, if nothing was announced for 5 s, it clears its
+    WS-Discovery cache, probes for SDC medical devices, and waits 3 s for answers.
 29. The bridge ignores providers whose location facility is not `SDC_FACILITY`.
 30. For an EPR it does not know yet, the bridge takes the bed ID from the location
     (`bed-NN`). If another provider already uses that ID, the bridge adds `-2`, `-3` and so on.
@@ -260,24 +274,27 @@ same host can reach it.
 33. For a multimodal bed, the translator reads the camera URL from the MDIB.
 34. The bridge logs `subscribed to SDC provider bed-NN (<epr>)`.
 
-The new bed usually appears in the UI 5–10 s after the click.
+The new bed usually appears in the UI 1–3 s after the click.
 
 #### Step 6: The tile appears and data flows
 
 35. The next `/api/beds` poll goes through the aggregator to the bridge's `GET /beds`, which
     lists the bed with `type`, `ai=false`, `primary=false`, `video_url`, `location` and
     `connected=true`.
-36. `setBeds` (`redux/slices/bedsSlice.ts`) stores the list, and the grid adds a tile
-    (`CentralStation/BedTile.tsx`).
+36. `setBeds` (`redux/slices/bedsSlice.ts`) stores the list. While the application is running,
+    the grid replaces the placeholder with a tile (`CentralStation/BedTile.tsx`).
     - The tile shows the **Monitor** or **Multimodal** badge. It has no **AI** or
       **Primary** badge.
-    - The tile has a ✕ button, because only non-primary beds can be removed.
+    - The tile has a ✕ button, because only non-primary beds can be removed. Clicking it
+      covers the tile with *Removing bed-NN…* until the bridge drops the bed, usually within
+      1–3 s.
 37. A green dot means the bridge's subscription is connected.
 38. Until data arrives, the tile is dimmed and the numerics show `--`.
 39. The bridge forwards device data only after **Start** is pressed in the UI. Start makes
-    the aggregator call the bridge's `POST /start`. Until then, the view shows
-    *Press Start to stream vitals from the beds*. If Start was already pressed, the new
-    bed's data flows as soon as the bridge subscribes.
+    the aggregator call the bridge's `POST /start`. Until then, the view shows only the
+    devices panel, with the add buttons disabled, and *Press Start to stream vitals from the
+    beds and to add or remove beds*. No tiles are shown. Because the buttons work only after
+    Start, the new bed's data flows as soon as the bridge subscribes.
 40. **Numerics.** Each update becomes a gRPC `Vital` sent to the aggregator (`:50051`).
     - Device IDs are `bed-NN-ecg`, `bed-NN-spo2`, `bed-NN-temp`, `bed-NN-co2` and
       `bed-NN-ibp`.
@@ -298,7 +315,10 @@ The new bed usually appears in the UI 5–10 s after the click.
     - A CO2 strip.
 
     The arterial pressure waveform is received but not drawn on the tile.
-46. If no update arrives for 5 s, for example after **Stop**, the tile is dimmed again.
+46. If no update arrives for 5 s, the tile is dimmed again.
+47. **Stop** removes all tiles and clears the live data. The camera connections close, and
+    events that arrive after Stop are ignored. The beds stay connected and keep counting in
+    *N beds*, and you can still add beds. Their tiles appear on the next **Start**.
 
 #### Patient Monitor vs. Multimodal Monitor
 

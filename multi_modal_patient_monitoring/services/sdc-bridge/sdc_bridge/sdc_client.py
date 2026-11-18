@@ -71,6 +71,10 @@ class SdcFleet:
         self._sessions: dict[str, _Session] = {}
         self._lock = threading.Lock()
         self._stop = threading.Event()
+        # Set by WS-Discovery Hello/Bye so new or removed beds are handled without waiting for the next scan.
+        self._wake = threading.Event()
+        self._hellos: list = []
+        self._byes: set[str] = set()
         self._thread = threading.Thread(target=self._run, daemon=True, name="sdc-fleet")
         self._wsd: WSDiscovery | None = None
 
@@ -108,11 +112,15 @@ class SdcFleet:
     def start(self) -> None:
         if not self._xaddr:
             self._wsd = WSDiscovery(self._bind_ip)
+            self._wsd.set_remote_service_hello_callback(self._on_hello,
+                                                        types=SdcV1Definitions.MedicalDeviceTypesFilter)
+            self._wsd.set_remote_service_bye_callback(self._on_bye)
             self._wsd.start()
         self._thread.start()
 
     def stop(self) -> None:
         self._stop.set()
+        self._wake.set()
         self._thread.join(timeout=15)
         with self._lock:
             sessions, self._sessions = list(self._sessions.values()), {}
@@ -122,6 +130,17 @@ class SdcFleet:
             self._wsd.stop()
 
     # ---- internals ----
+    # Called on the WS-Discovery receive thread, so only queue the event; _run does the work.
+    def _on_hello(self, _addr: str, service) -> None:
+        with self._lock:
+            self._hellos.append(service)
+        self._wake.set()
+
+    def _on_bye(self, _addr: str, epr: str) -> None:
+        with self._lock:
+            self._byes.add(epr)
+        self._wake.set()
+
     def _primary(self) -> _Session | None:
         with self._lock:
             return next((s for s in self._sessions.values() if s.translator.primary), None)
@@ -135,11 +154,27 @@ class SdcFleet:
                         self._open(self._xaddr, "bed-01", "", lambda: SdcConsumer(
                             self._xaddr, SdcV1Definitions, self._ssl))
                 else:
-                    self._scan()
+                    with self._lock:
+                        hellos, self._hellos = self._hellos, []
+                        byes, self._byes = self._byes, set()
+                    self._drop(byes)
+                    if hellos:
+                        for service in hellos:
+                            self._consider(service)
+                    elif not byes:
+                        self._scan()
             except Exception as exc:
                 log.warning("SDC discovery round failed: %s", exc)
                 log.debug("discovery failure detail", exc_info=True)
-            self._stop.wait(self._scan_s)
+            self._wake.wait(self._scan_s)
+            self._wake.clear()
+
+    def _drop(self, eprs: set[str]) -> None:
+        with self._lock:
+            gone = [self._sessions.pop(epr) for epr in eprs if epr in self._sessions]
+        for s in gone:
+            log.info("SDC provider %s (%s) said Bye", s.bed_id, s.epr)
+            self._close(s)
 
     def _prune_disconnected(self) -> None:
         with self._lock:
@@ -156,19 +191,24 @@ class SdcFleet:
         services = self._wsd.search_services(types=SdcV1Definitions.MedicalDeviceTypesFilter, timeout=3)
         seen = set()
         for service in services:
-            loc = _location(service)
-            if self._facility and (loc is None or loc.fac != self._facility):
-                continue
-            seen.add(service.epr)
-            if service.epr in self._sessions:
-                continue
-            bed_id = self._unique_bed_id((loc.bed if loc else None) or service.epr.rsplit(":", 1)[-1][:8])
-            try:
-                self._open(service.epr, bed_id, f"{loc.fac}/{loc.poc}/{loc.bed}" if loc else "",
-                           lambda s=service: SdcConsumer.from_wsd_service(s, ssl_context_container=self._ssl))
-            except Exception as exc:
-                log.warning("cannot connect to SDC provider %s (%s): %s", bed_id, service.epr, exc)
+            if self._consider(service):
+                seen.add(service.epr)
         self._prune_missing(seen)
+
+    def _consider(self, service) -> bool:
+        """Subscribe to a discovered provider if it is new and in our facility. Returns False if ignored."""
+        loc = _location(service)
+        if self._facility and (loc is None or loc.fac != self._facility):
+            return False
+        if service.epr in self._sessions:
+            return True
+        bed_id = self._unique_bed_id((loc.bed if loc else None) or service.epr.rsplit(":", 1)[-1][:8])
+        try:
+            self._open(service.epr, bed_id, f"{loc.fac}/{loc.poc}/{loc.bed}" if loc else "",
+                       lambda s=service: SdcConsumer.from_wsd_service(s, ssl_context_container=self._ssl))
+        except Exception as exc:
+            log.warning("cannot connect to SDC provider %s (%s): %s", bed_id, service.epr, exc)
+        return True
 
     def _prune_missing(self, seen: set[str]) -> None:
         with self._lock:

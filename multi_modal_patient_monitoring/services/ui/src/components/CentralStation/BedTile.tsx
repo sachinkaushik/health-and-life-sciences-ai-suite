@@ -47,7 +47,13 @@ const BedTile: React.FC<{
   const videoUrl = bed.type === 'multimodal' ? toBrowserVideoUrl(bed.video_url) : null;
 
   return (
-    <div className={`bed-tile${stale ? ' stale' : ''}`}>
+    <div className={`bed-tile${stale ? ' stale' : ''}${removing ? ' removing' : ''}`}>
+      {removing && (
+        <div className="bed-tile-overlay">
+          <span className="cs-spinner" />
+          Removing {bed.bed_id}…
+        </div>
+      )}
       <div className="bed-tile-header">
         <span className={`bed-status-dot${bed.connected ? ' on' : ''}`} title={bed.connected ? 'Connected' : 'Disconnected'} />
         <span className="bed-id">{bed.bed_id}</span>

@@ -10,6 +10,7 @@
 
 .devices-panel {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   margin-bottom: 12px;
@@ -51,6 +52,63 @@
 
 .bed-tile.stale {
   opacity: 0.6;
+}
+
+.bed-tile.removing,
+.bed-tile.pending {
+  position: relative;
+  opacity: 1;
+}
+
+.bed-tile.pending {
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+  color: #c4c8d0;
+  border: 1px dashed #3a4150;
+}
+
+.bed-tile.pending small {
+  color: #8a94a6;
+}
+
+.bed-tile-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 6px;
+  background: rgba(17, 21, 28, 0.8);
+  color: #e8eaed;
+  font-size: 13px;
+}
+
+.devices-pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #0068b5;
+  font-size: 13px;
+}
+
+.cs-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  vertical-align: middle;
+  animation: central-spin 0.8s linear infinite;
+}
+
+@keyframes central-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .bed-tile-header {

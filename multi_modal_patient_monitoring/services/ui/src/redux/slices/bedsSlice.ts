@@ -3,6 +3,7 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import type { BedInfo } from '../../services/api';
+import { stopProcessing } from './appSlice';
 
 export type BedNumerics = {
   HR?: number;
@@ -59,6 +60,11 @@ const bedsSlice = createSlice({
     clearBedLive: (state) => {
       state.live = {};
     },
+  },
+  extraReducers: (builder) => {
+    builder.addCase(stopProcessing, (state) => {
+      state.live = {};
+    });
   },
 });
 
