@@ -1,0 +1,5 @@
+sdc11073>=2.0,<3
+grpcio==1.78.0
+protobuf==6.33.5
+fastapi>=0.110
+uvicorn>=0.29

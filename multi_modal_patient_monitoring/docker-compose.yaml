@@ -39,6 +39,9 @@ services:
       - WORKLOAD_TYPE=mdpnp
       - GRPC_PORT=50051
       - HTTP_PORT=8001
+      # Device source control endpoint: dds-bridge (:8082, openice) or sdc-bridge (:8092, sdc).
+      - DDS_BRIDGE_CONTROL_URL=${DEVICE_CONTROL_URL:-http://localhost:8082}
+      - AI_ECG_URL=${AGGREGATOR_AI_ECG_URL:-http://localhost:8000/predict_stream_next}
     network_mode: "host"
     
   metrics-collector:
@@ -75,6 +78,7 @@ services:
         NO_PROXY: ${NO_PROXY}
     image: intel/hl-ai-mdpnp:${TAG}
     container_name: mdpnp
+    profiles: ["openice"]
     network_mode: "host"
     depends_on:
         patient-monitoring-assets:
@@ -92,6 +96,7 @@ services:
         NO_PROXY: ${NO_PROXY}
     image: intel/hl-ai-dds-bridge:${TAG}
     container_name: dds-bridge
+    profiles: ["openice"]
     environment:
       - GRPC_HOST=localhost
       - GRPC_PORT=50051
@@ -104,6 +109,49 @@ services:
       mdpnp:
         condition: service_started
     network_mode: "host"
+
+  # IEEE 11073 SDC device path (DEVICE_SOURCE=sdc): SDC provider + SDC consumer feeding the aggregator.
+  sdc-gateway:
+    build:
+      context: ./services/sdc-gateway
+      dockerfile: Dockerfile
+      args:
+        HTTP_PROXY: ${HTTP_PROXY}
+        HTTPS_PROXY: ${HTTPS_PROXY}
+        NO_PROXY: ${NO_PROXY}
+    image: intel/hl-ai-sdc-gateway:${TAG}
+    container_name: sdc-gateway
+    profiles: ["sdc"]
+    network_mode: "host"
+    environment:
+      - SDC_BIND_IP=${SDC_BIND_IP:-}
+      - SDC_SSL_DIR=${SDC_SSL_DIR:-}
+      - RPPG_GRPC_PORT=50061
+      - AI_ECG_URL=http://localhost:8000/predict_stream_next
+
+  sdc-bridge:
+    build:
+      context: ./services/sdc-bridge
+      dockerfile: Dockerfile
+      args:
+        HTTP_PROXY: ${HTTP_PROXY}
+        HTTPS_PROXY: ${HTTPS_PROXY}
+        NO_PROXY: ${NO_PROXY}
+    image: intel/hl-ai-sdc-bridge:${TAG}
+    container_name: sdc-bridge
+    profiles: ["sdc"]
+    network_mode: "host"
+    environment:
+      - SDC_BIND_IP=${SDC_BIND_IP:-}
+      - SDC_SSL_DIR=${SDC_SSL_DIR:-}
+      - GRPC_HOST=localhost
+      - GRPC_PORT=50051
+      - CONTROL_PORT=8092
+    depends_on:
+      patient-monitoring-aggregator:
+        condition: service_started
+      sdc-gateway:
+        condition: service_started
 
   ai-ecg:
     build:
@@ -186,8 +234,13 @@ services:
         condition: service_completed_successfully
       patient-monitoring-aggregator:
           condition: service_started  
+      sdc-gateway:
+        condition: service_started
+        required: false
     environment:
       - RPPG_DEVICE=${RPPG_DEVICE:-}  
+      # 50051 = aggregator (openice); 50061 = sdc-gateway (sdc).
+      - AGGREGATOR_PORT=${RPPG_AGGREGATOR_PORT:-50051}
     env_file:
       - ./configs/device.env  
     volumes:
@@ -220,8 +273,13 @@ services:
         condition: service_started
       mdpnp:
         condition: service_started
+        required: false
       dds-bridge:
         condition: service_started
+        required: false
+      sdc-bridge:
+        condition: service_started
+        required: false
       ai-ecg:
         condition: service_started
       3dpose-estimation:

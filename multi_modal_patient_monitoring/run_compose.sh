@@ -3,12 +3,37 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Select the bedside-device path: openice (MD PnP + DDS bridge) or sdc (IEEE 11073 SDC gateway + bridge).
+# An exported DEVICE_SOURCE (e.g. from `make run DEVICE_SOURCE=sdc`) overrides configs/device.env.
+configure_device_source() {
+  case "${DEVICE_SOURCE:-openice}" in
+    openice)
+      export COMPOSE_PROFILES=openice
+      ;;
+    sdc)
+      export COMPOSE_PROFILES=sdc
+      export DEVICE_CONTROL_URL=http://localhost:8092
+      export AGGREGATOR_AI_ECG_URL=http://localhost:8092/predict_stream_next
+      export RPPG_AGGREGATOR_PORT=50061
+      ;;
+    *)
+      echo "Invalid DEVICE_SOURCE='${DEVICE_SOURCE}' (expected openice or sdc)" >&2
+      exit 1
+      ;;
+  esac
+  echo "Device source: ${DEVICE_SOURCE:-openice}" >&2
+}
+
 if [[ ! -f "${ROOT_DIR}/configs/device.env" ]]; then
   echo "configs/device.env not found; running without NPU override" >&2
+  configure_device_source
   exec docker compose -f "${ROOT_DIR}/docker-compose.yaml" up "$@"
 fi
 
+DEVICE_SOURCE_OVERRIDE="${DEVICE_SOURCE:-}"
 source "${ROOT_DIR}/configs/device.env"
+DEVICE_SOURCE="${DEVICE_SOURCE_OVERRIDE:-${DEVICE_SOURCE:-}}"
+configure_device_source
 
 TMP_OVERRIDE="$(mktemp)"
 trap 'rm -f "${TMP_OVERRIDE}"' EXIT

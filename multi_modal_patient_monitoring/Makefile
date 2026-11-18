@@ -23,6 +23,10 @@ export HOST_IP
 TAG ?= 2026.3.0-rc1
 export TAG
 
+# Bedside device source: openice | sdc. Empty = use DEVICE_SOURCE from configs/device.env.
+DEVICE_SOURCE ?=
+export DEVICE_SOURCE
+
 MODEL_STAGING_DIR ?= $(CURDIR)/models/downloads
 RPPG_SOURCE_MODEL := $(MODEL_STAGING_DIR)/rppg/mtts_can.hdf5
 POSE_SOURCE_ARCHIVE := $(MODEL_STAGING_DIR)/3d-pose/human-pose-estimation-3d.tar.gz
@@ -63,7 +67,7 @@ run: precheck-models
 
 down:
 	@echo "Tearing down the services..."
-	docker compose -f $(DOCKER_COMPOSE) down
+	docker compose --profile openice --profile sdc -f $(DOCKER_COMPOSE) down
 
 download-rppg-assets:
 	@echo "Downloading RPPG model and sample video assets..."
