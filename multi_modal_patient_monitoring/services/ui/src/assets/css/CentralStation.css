@@ -1,0 +1,221 @@
+/* src/assets/css/CentralStation.css */
+.central-station {
+  flex: 1;
+  overflow-y: auto;
+  height: calc(100vh - 64px - 56px - 48px);
+  box-sizing: border-box;
+  padding: 12px 16px;
+  font-family: var(--font-text);
+}
+
+.devices-panel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.devices-count {
+  font-weight: 600;
+  color: #2b2c30;
+  margin-right: 8px;
+}
+
+.devices-error {
+  color: #b00020;
+  font-size: 13px;
+}
+
+.central-hint,
+.central-empty {
+  color: #6b6e76;
+  font-size: 13px;
+  padding: 8px 0;
+}
+
+.bed-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 12px;
+}
+
+.bed-tile {
+  background: #11151c;
+  color: #e8eaed;
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bed-tile.stale {
+  opacity: 0.6;
+}
+
+.bed-tile-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bed-id {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.bed-spacer {
+  flex: 1;
+}
+
+.bed-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #8a8f98;
+}
+
+.bed-status-dot.on {
+  background: #3ecf5a;
+}
+
+.bed-badge {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: #2a3240;
+  color: #b9c2d0;
+}
+
+.bed-badge.ai {
+  background: #3b2a5c;
+  color: #d4c2ff;
+}
+
+.bed-badge.primary {
+  background: #0b4f80;
+  color: #cde8ff;
+}
+
+.bed-remove {
+  background: transparent;
+  border: 1px solid #485060;
+  color: #b9c2d0;
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 0 6px;
+}
+
+.bed-remove:hover:not(:disabled) {
+  border-color: #ff6b6b;
+  color: #ff6b6b;
+}
+
+.bed-numerics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px 8px;
+}
+
+.bed-num {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.bed-num label {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.bed-num b {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.bed-num small {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.bed-num.hr { color: #3ecf5a; }
+.bed-num.spo2 { color: #4fb3ff; }
+.bed-num.rr { color: #f5d742; }
+.bed-num.bp { color: #ff6b6b; }
+.bed-num.temp { color: #e8eaed; }
+.bed-num.co2 { color: #f5d742; }
+
+.bed-wave {
+  position: relative;
+  height: 48px;
+  background: #0a0d12;
+  border-radius: 3px;
+}
+
+.bed-wave svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.bed-wave-label {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 10px;
+}
+
+.bed-video {
+  height: 120px;
+  background: #000;
+  border-radius: 3px;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+}
+
+.bed-video canvas {
+  height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+/* Hidden source for SharedVideo; kept in the DOM so the browser keeps decoding the stream. */
+.shared-video-source {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.view-toggle {
+  display: flex;
+  margin-left: 16px;
+}
+
+.view-toggle button {
+  font-family: var(--font-text);
+  font-size: 13px;
+  padding: 6px 12px;
+  border: 1px solid #82b6df;
+  background: white;
+  color: #0071c5;
+  cursor: pointer;
+}
+
+.view-toggle button:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.view-toggle button:last-child {
+  border-radius: 0 4px 4px 0;
+  border-left: none;
+}
+
+.view-toggle button.active {
+  background: #0071c5;
+  color: white;
+}

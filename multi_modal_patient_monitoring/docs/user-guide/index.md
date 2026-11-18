@@ -47,6 +47,8 @@ orchestrated, monitored, and visualized in a clinical-style scenario.
 - [System Requirements](./get-started/system-requirements.md) – Hardware, software, and network requirements, plus an overview of the AI models used by each workload.
 - [How It Works](./how-it-works.md) – High-level architecture, service responsibilities, and
   data/control flows.
+- [SDC Device Source](./sdc-device-source.md) – Using IEEE 11073 SDC instead of OpenICE for
+  bedside-device data.
 - [Release Notes](./release-notes.md) – Version history and known issues.
 
 
@@ -57,6 +59,7 @@ orchestrated, monitored, and visualized in a clinical-style scenario.
 
 Get Started <get-started.md>
 How It Works <how-it-works.md>
+SDC Device Source <sdc-device-source.md>
 Release Notes <release-notes.md>
 
 :::

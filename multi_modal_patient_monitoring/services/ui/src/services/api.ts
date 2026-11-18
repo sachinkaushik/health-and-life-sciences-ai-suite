@@ -194,6 +194,63 @@ export function getEventsUrl(workloads: WorkloadType[]): string {
   // Override with VITE_API_BASE_URL to call the aggregator directly.
 }
 
+export type DeviceKind = 'monitor' | 'multimodal';
+export type BedInfo = {
+  bed_id: string;
+  epr: string;
+  location: string;
+  primary: boolean;
+  type: DeviceKind;
+  ai: boolean;
+  video_url: string | null;
+  connected: boolean;
+};
+
+async function jsonOrThrow<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      detail = (await res.json()).detail ?? detail;
+    } catch {
+      // keep statusText
+    }
+    throw new Error(`${res.status}: ${detail}`);
+  }
+  return res.status === 204 ? (undefined as T) : res.json();
+}
+
+/** Beds (SDC providers) the sdc-bridge is subscribed to. Fails when the device source is not SDC. */
+export async function getBeds(): Promise<{ enabled: boolean; beds: BedInfo[] }> {
+  return jsonOrThrow(await fetch(`${BASE_URL}/beds`, { cache: 'no-store' }));
+}
+
+export async function addDevice(type: DeviceKind): Promise<unknown> {
+  return jsonOrThrow(await fetch(`${BASE_URL}/devices`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type }),
+  }));
+}
+
+export async function removeDevice(bedId: string): Promise<void> {
+  return jsonOrThrow(await fetch(`${BASE_URL}/devices/${encodeURIComponent(bedId)}`, { method: 'DELETE' }));
+}
+
+/**
+ * The gateway publishes camera URLs as seen from the host (e.g. http://<host>:8085/video_feed).
+ * The pose MJPEG stream is served to the browser through nginx at /pose-stream/, so rewrite it.
+ */
+export function toBrowserVideoUrl(url: string | null): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    if (u.port === '8085') return `/pose-stream${u.pathname}${u.search}`;
+    return u.protocol === 'http:' || u.protocol === 'https:' ? url : null;
+  } catch {
+    return null;
+  }
+}
+
 export const api = {
   pingBackend,
   getStreamingStatus,
@@ -203,6 +260,9 @@ export const api = {
   getResourceMetrics,
   getWorkloadDevices,  
   getEventsUrl,
+  getBeds,
+  addDevice,
+  removeDevice,
 };
 
 export default api;

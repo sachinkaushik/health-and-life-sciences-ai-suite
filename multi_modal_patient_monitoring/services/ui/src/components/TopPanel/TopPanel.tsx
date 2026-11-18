@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef, JSX } from 'react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
-import { startProcessing, stopProcessing } from '../../redux/slices/appSlice';
+import { startProcessing, stopProcessing, setView } from '../../redux/slices/appSlice';
 // ADD THIS IMPORT:
 import { startAllWorkloads, stopAllWorkloads } from '../../redux/slices/servicesSlice';
 import { api } from '../../services/api';
 import InfoModal from '../InfoModal/InfoModal';
 import '../../assets/css/TopPanel.css';
+import '../../assets/css/CentralStation.css';
 
 const TopPanel = () => {
   const dispatch = useAppDispatch();
-  const { isProcessing } = useAppSelector((state) => state.app);
+  const { isProcessing, view } = useAppSelector((state) => state.app);
   const [notification, setNotification] = useState<string>('');
   const [isBackendReady, setIsBackendReady] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
@@ -143,6 +144,15 @@ const TopPanel = () => {
             title={!isProcessing ? 'No workloads running' : 'Stop all workloads'}
           >
             {isStopping ? '⏳ Stopping...' : '⏹ Stop'}
+          </button>
+        </div>
+
+        <div className="view-toggle">
+          <button className={view === 'workloads' ? 'active' : ''} onClick={() => dispatch(setView('workloads'))}>
+            Workloads
+          </button>
+          <button className={view === 'central' ? 'active' : ''} onClick={() => dispatch(setView('central'))}>
+            Central station
           </button>
         </div>
 

@@ -29,9 +29,14 @@ class VitalConsumer:
         # via the Vital.metadata map, propagate it into the payload so the
         # UI can easily distinguish different simulators/devices.
         device_type = None
+        bed = {}
         try:
             # vital.metadata is a dict-like mapping (string -> string)
             device_type = vital.metadata.get("device_type")
+            # sdc-bridge tags every vital with the bed (SDC provider) it came from.
+            if vital.metadata.get("bed_id"):
+                bed = {"bed_id": vital.metadata.get("bed_id"),
+                       "primary": vital.metadata.get("primary") == "true"}
         except Exception:
             device_type = None
         ts_sec = vital.timestamp / 1000.0
@@ -46,6 +51,7 @@ class VitalConsumer:
             }
             if device_type:
                 result["device_type"] = device_type
+            result.update(bed)
             print("[Aggregator] ECG/waveform forwarded:", {
                 "device_id": vital.device_id,
                 "metric": vital.metric,
@@ -67,6 +73,8 @@ class VitalConsumer:
         if result:
             if device_type and isinstance(result, dict):
                 result.setdefault("device_type", device_type)
+            if isinstance(result, dict):
+                result.update(bed)
             print(f"[Consumer] Numeric aggregated: "
                   f"{vital.device_id}/{vital.metric} = {result}")
             return result

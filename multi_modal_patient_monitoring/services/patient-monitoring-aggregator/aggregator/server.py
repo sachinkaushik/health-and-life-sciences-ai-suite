@@ -10,7 +10,7 @@ from concurrent import futures
 from typing import Optional
 
 from fastapi import FastAPI, Request, Query, HTTPException
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse, JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from google.protobuf.empty_pb2 import Empty
 import uvicorn
@@ -40,6 +40,22 @@ METRICS_TIMEOUT_SECONDS = float(os.getenv("METRICS_TIMEOUT_SECONDS", "10"))
 DDS_BRIDGE_CONTROL_URL = os.getenv("DDS_BRIDGE_CONTROL_URL", "http://localhost:8082")
 POSE_3D_CONTROL_URL = os.getenv("POSE_3D_CONTROL_URL", "http://localhost:8083")
 RPPG_CONTROL_URL = os.getenv("RPPG_CONTROL_URL", "http://localhost:8084")
+# SDC device source only: sdc-gateway device-management API.
+SDC_GATEWAY_URL = os.getenv("SDC_GATEWAY_URL", "http://localhost:8093")
+
+
+def _proxy(method: str, url: str, **kwargs):
+    """Forward a request to a backend service and relay its status and JSON body."""
+    try:
+        resp = requests.request(method, url, timeout=10, **kwargs)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"{url} unreachable: {exc}")
+    if resp.status_code == 204 or not resp.content:
+        return Response(status_code=resp.status_code)
+    try:
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)
+    except ValueError:
+        raise HTTPException(status_code=502, detail="Invalid JSON from backend")
 
 
 def _proxy_metrics_get(path: str):
@@ -169,6 +185,38 @@ async def memory_usage():
 async def device_config():
     """Proxy for device configuration summary."""
     return _proxy_metrics_get("/device-config")
+
+
+@app.get("/beds")
+def list_beds():
+    """Beds (SDC providers) the device source is subscribed to. SDC device source only."""
+    return _proxy("GET", f"{DDS_BRIDGE_CONTROL_URL}/beds")
+
+
+@app.get("/devices")
+def list_devices():
+    """Simulated SDC beds on the sdc-gateway."""
+    return _proxy("GET", f"{SDC_GATEWAY_URL}/devices")
+
+
+@app.post("/devices")
+async def add_device(request: Request):
+    """Add a simulated bed: body {"type": "monitor" | "multimodal"}."""
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="JSON body required")
+    if not isinstance(body, dict) or body.get("type") not in ("monitor", "multimodal"):
+        raise HTTPException(status_code=422, detail="type must be 'monitor' or 'multimodal'")
+    return await asyncio.to_thread(_proxy, "POST", f"{SDC_GATEWAY_URL}/devices", json={"type": body["type"]})
+
+
+@app.delete("/devices/{bed_id}")
+def remove_device(bed_id: str):
+    """Remove a simulated bed from the sdc-gateway."""
+    if not bed_id.replace("-", "").isalnum():
+        raise HTTPException(status_code=400, detail="invalid bed id")
+    return _proxy("DELETE", f"{SDC_GATEWAY_URL}/devices/{bed_id}")
 
 
 @app.get("/streaming-status")
@@ -377,6 +425,11 @@ class VitalService(vital_pb2_grpc.VitalServiceServicer):
                     and "device_type" in result
                 ):
                     message["device_type"] = result["device_type"]
+
+                # SDC sources: which bed (provider) the vital belongs to.
+                if isinstance(result, dict) and "bed_id" in result:
+                    message["bed_id"] = result["bed_id"]
+                    message["primary"] = result.get("primary", False)
 
                 # Payload comes last so JSON appears as:
                 # {workload_type, event_type, timestamp, device_type?, payload}

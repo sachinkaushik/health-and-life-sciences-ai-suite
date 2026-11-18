@@ -11,8 +11,8 @@ from typing import Iterable, Mapping
 from sdc11073.mdib import ProviderMdib
 
 
-def _dec(value: float, places: int) -> Decimal:
-    return Decimal(f"{value:.{places}f}")
+def _dec(value: float, places: int | None) -> Decimal:
+    return Decimal(str(value)) if places is None else Decimal(f"{value:.{places}f}")
 
 
 class MdibWriter:
@@ -20,8 +20,8 @@ class MdibWriter:
         self._mdib = mdib
 
     def set_metrics(self, values: Mapping[str, float | str], determination_time: float | None = None,
-                    places: int = 2) -> None:
-        """Update numeric/string metrics in one episodic report."""
+                    places: int | None = 2) -> None:
+        """Update numeric/string metrics in one episodic report (places=None keeps each value's own precision)."""
         t = determination_time if determination_time is not None else time.time()
         with self._mdib.metric_state_transaction(set_determination_time=False) as tr:
             for handle, value in values.items():

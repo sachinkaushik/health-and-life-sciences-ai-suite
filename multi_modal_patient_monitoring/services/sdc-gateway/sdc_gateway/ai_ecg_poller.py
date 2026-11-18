@@ -10,6 +10,7 @@ import time
 
 import requests
 
+from . import mdib_model as m
 from .writer import MdibWriter
 
 log = logging.getLogger(__name__)
@@ -50,9 +51,9 @@ class AiEcgPoller:
         signal = data.get("signal") or []
         # Millisecond precision so wave and label share the exact BICEPS timestamp.
         t = round(time.time(), 3)
-        self._writer.push_samples({"aiecg.signal": signal}, determination_time=t, places=5)
+        self._writer.push_samples({m.W_AI_STRIP: signal}, determination_time=t, places=5)
         self._writer.set_metrics({
-            "aiecg.rhythm": str(data.get("result", "Unknown")),
-            "aiecg.source": str(data.get("file", "")),
-            "aiecg.latency": float(data.get("inference_ms", 0.0)),
+            m.H_AI_RHYTHM: str(data.get("result", "Unknown")),
+            m.H_AI_SOURCE: str(data.get("file", "")),
+            m.H_AI_LATENCY: float(data.get("inference_ms", 0.0)),
         }, determination_time=t)

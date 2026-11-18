@@ -1,6 +1,10 @@
 # Copyright © 2026 Intel Corporation. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""MDIB layout of the MMPM SDC gateway (one MDS, one VMD per data source)."""
+"""MDIB layout of the MMPM SDC devices.
+
+Metric handles follow the SDC-Dashboard multiparameter-monitor contract (numeric.* / wave.*), so
+any consumer built against that contract renders MMPM beds without extra mapping.
+"""
 
 from __future__ import annotations
 
@@ -13,18 +17,55 @@ from sdc11073.xml_types import pm_qnames, pm_types
 
 # Coding system for MMPM-specific codes (rPPG / AI-ECG); None means IEEE 11073-10101.
 VENDOR_CS = "urn:intel:hls:mmpm"
+VIDEO_CS = "urn:research:video"
+UCUM_CS = "urn:oid:1.2.840.10008.2.16.4"
 
 NUMERIC = "numeric"
 WAVE = "wave"
 STRING = "string"
 
-# Context-free codes per IEEE 11073-10101; confirm against NIST RTMMS before clinical use.
-DIM_BEAT_PER_MIN = ("264864", "MDC_DIM_BEAT_PER_MIN")
-DIM_RESP_PER_MIN = ("264928", "MDC_DIM_RESP_PER_MIN")
-DIM_MMHG = ("266016", "MDC_DIM_MMHG")
-DIM_MILLI_VOLT = ("266418", "MDC_DIM_MILLI_VOLT")
-DIM_DIMLESS = ("262656", "MDC_DIM_DIMLESS")
-DIM_MILLI_SEC = ("264338", "MDC_DIM_MILLI_SEC")
+MONITOR = "monitor"
+MULTIMODAL = "multimodal"
+DEVICE_KINDS = (MONITOR, MULTIMODAL)
+
+# (UCUM code, IEEE 11073-10101 symbolic name)
+U_BEAT_PER_MIN = ("/min", "MDC_DIM_BEAT_PER_MIN")
+U_RESP_PER_MIN = ("/min", "MDC_DIM_RESP_PER_MIN")
+U_MMHG = ("mm[Hg]", "MDC_DIM_MMHG")
+U_MILLI_VOLT = ("mV", "MDC_DIM_MILLI_VOLT")
+U_PERCENT = ("%", "MDC_DIM_PERCENT")
+U_DEGC = ("Cel", "MDC_DIM_DEGC")
+U_DIMLESS = ("1", "MDC_DIM_DIMLESS")
+U_MILLI_SEC = ("ms", "MDC_DIM_MILLI_SEC")
+
+# Bedside vitals
+H_HR = "numeric.hr"
+H_RR = "numeric.rr"
+H_SPO2 = "numeric.spo2"
+H_TEMP = "numeric.temp"
+H_ETCO2 = "numeric.etco2"
+H_RR_CO2 = "numeric.rr_co2"
+H_BP_SYS = "numeric.nibp_sys"
+H_BP_DIA = "numeric.nibp_dia"
+H_BP_MAP = "numeric.nibp_map"
+W_ECG_II = "wave.ecg_ii"
+W_PLETH = "wave.pleth"
+W_CO2 = "wave.co2"
+W_ABP = "wave.abp"
+# rPPG (camera)
+H_RPPG_HR = "numeric.rppg_hr"
+H_RPPG_RR = "numeric.rppg_rr"
+H_RPPG_HR_AVG = "numeric.rppg_hr_avg"
+H_RPPG_RR_AVG = "numeric.rppg_rr_avg"
+W_RPPG_PULSE = "wave.rppg"
+W_RPPG_RESP = "wave.rppg_resp"
+# AI-ECG; handles avoid "ecg" because consumers route any "*ecg*" wave to the live ECG strip.
+W_AI_STRIP = "wave.ai_rhythm_strip"
+H_AI_RHYTHM = "string.ai_rhythm"
+H_AI_SOURCE = "string.ai_rhythm_source"
+H_AI_LATENCY = "numeric.ai_rhythm_latency"
+# Room camera
+H_VIDEO_URL = "string.video_stream_url"
 
 
 @dataclass(frozen=True)
@@ -56,6 +97,7 @@ class VmdSpec:
 
 
 ECG_FS = 250.0
+PLETH_FS = 100.0
 CO2_FS = 20.0
 IBP_FS = 120.0
 RPPG_FS = 30.0
@@ -66,61 +108,84 @@ MDS_CODE = ("69965", "MDC_DEV_MON_PHYSIO_MULTI_PARAM_MDS")
 
 DEVICE_VMD = VmdSpec("vmd.device", "DEVICE_VMD", "MMPM_DEVICE_VMD", (
     ChannelSpec("ch.ecg", "ECG_CHAN", "MMPM_ECG_CHAN", (
-        MetricSpec("ecg.hr", NUMERIC, "147842", "MDC_ECG_HEART_RATE", DIM_BEAT_PER_MIN),
-        MetricSpec("ecg.rr", NUMERIC, "151570", "MDC_TTHOR_RESP_RATE", DIM_RESP_PER_MIN),
-        MetricSpec("ecg.lead_i", WAVE, "131329", "MDC_ECG_ELEC_POTL_I", DIM_MILLI_VOLT,
+        MetricSpec(H_HR, NUMERIC, "147842", "MDC_ECG_HEART_RATE", U_BEAT_PER_MIN),
+        MetricSpec(H_RR, NUMERIC, "151570", "MDC_TTHOR_RESP_RATE", U_RESP_PER_MIN),
+        MetricSpec(W_ECG_II, WAVE, "131330", "MDC_ECG_ELEC_POTL_II", U_MILLI_VOLT,
                    sample_rate_hz=ECG_FS, resolution="0.001"),
-        MetricSpec("ecg.lead_ii", WAVE, "131330", "MDC_ECG_ELEC_POTL_II", DIM_MILLI_VOLT,
-                   sample_rate_hz=ECG_FS, resolution="0.001"),
-        MetricSpec("ecg.lead_iii", WAVE, "131389", "MDC_ECG_ELEC_POTL_III", DIM_MILLI_VOLT,
-                   sample_rate_hz=ECG_FS, resolution="0.001"),
+    )),
+    ChannelSpec("ch.spo2", "SPO2_CHAN", "MMPM_SPO2_CHAN", (
+        MetricSpec(H_SPO2, NUMERIC, "150456", "MDC_PULS_OXIM_SAT_O2", U_PERCENT),
+        MetricSpec(W_PLETH, WAVE, "150452", "MDC_PULS_OXIM_PLETH", U_DIMLESS,
+                   sample_rate_hz=PLETH_FS, resolution="0.001"),
+    )),
+    ChannelSpec("ch.temp", "TEMP_CHAN", "MMPM_TEMP_CHAN", (
+        MetricSpec(H_TEMP, NUMERIC, "150364", "MDC_TEMP_BODY", U_DEGC, resolution="0.1"),
     )),
     ChannelSpec("ch.co2", "CO2_CHAN", "MMPM_CO2_CHAN", (
-        MetricSpec("co2.et", NUMERIC, "151708", "MDC_AWAY_CO2_ET", DIM_MMHG),
-        MetricSpec("co2.rr", NUMERIC, "151586", "MDC_CO2_RESP_RATE", DIM_RESP_PER_MIN),
-        MetricSpec("co2.wave", WAVE, "151704", "MDC_AWAY_CO2", DIM_MMHG,
+        MetricSpec(H_ETCO2, NUMERIC, "151708", "MDC_AWAY_CO2_ET", U_MMHG),
+        MetricSpec(H_RR_CO2, NUMERIC, "151586", "MDC_CO2_RESP_RATE", U_RESP_PER_MIN),
+        MetricSpec(W_CO2, WAVE, "151704", "MDC_AWAY_CO2", U_MMHG,
                    sample_rate_hz=CO2_FS, resolution="0.1"),
     )),
+    # Arterial-line codes under the contract's numeric.nibp_* handles.
     ChannelSpec("ch.ibp", "IBP_CHAN", "MMPM_IBP_CHAN", (
-        MetricSpec("ibp.sys", NUMERIC, "150037", "MDC_PRESS_BLD_ART_ABP_SYS", DIM_MMHG),
-        MetricSpec("ibp.dia", NUMERIC, "150038", "MDC_PRESS_BLD_ART_ABP_DIA", DIM_MMHG),
-        MetricSpec("ibp.mean", NUMERIC, "150039", "MDC_PRESS_BLD_ART_ABP_MEAN", DIM_MMHG),
-        MetricSpec("ibp.wave", WAVE, "150036", "MDC_PRESS_BLD_ART_ABP", DIM_MMHG,
+        MetricSpec(H_BP_SYS, NUMERIC, "150037", "MDC_PRESS_BLD_ART_ABP_SYS", U_MMHG),
+        MetricSpec(H_BP_DIA, NUMERIC, "150038", "MDC_PRESS_BLD_ART_ABP_DIA", U_MMHG),
+        MetricSpec(H_BP_MAP, NUMERIC, "150039", "MDC_PRESS_BLD_ART_ABP_MEAN", U_MMHG),
+        MetricSpec(W_ABP, WAVE, "150036", "MDC_PRESS_BLD_ART_ABP", U_MMHG,
                    sample_rate_hz=IBP_FS, resolution="0.1"),
     )),
 ), )
 
 RPPG_VMD = VmdSpec("vmd.rppg", "RPPG_VMD", "MMPM_RPPG_VMD", (
     ChannelSpec("ch.rppg", "RPPG_CHAN", "MMPM_RPPG_CHAN", (
-        MetricSpec("rppg.hr", NUMERIC, "RPPG_HEART_RATE", "RPPG_HEART_RATE", DIM_BEAT_PER_MIN,
+        MetricSpec(H_RPPG_HR, NUMERIC, "RPPG_HEART_RATE", "RPPG_HEART_RATE", U_BEAT_PER_MIN,
                    coding_system=VENDOR_CS, resolution="0.1"),
-        MetricSpec("rppg.rr", NUMERIC, "RPPG_RESP_RATE", "RPPG_RESP_RATE", DIM_RESP_PER_MIN,
+        MetricSpec(H_RPPG_RR, NUMERIC, "RPPG_RESP_RATE", "RPPG_RESP_RATE", U_RESP_PER_MIN,
                    coding_system=VENDOR_CS, resolution="0.1"),
-        MetricSpec("rppg.hr_avg", NUMERIC, "RPPG_HEART_RATE_AVG", "RPPG_HEART_RATE_AVG",
-                   DIM_BEAT_PER_MIN, coding_system=VENDOR_CS, resolution="0.1"),
-        MetricSpec("rppg.rr_avg", NUMERIC, "RPPG_RESP_RATE_AVG", "RPPG_RESP_RATE_AVG",
-                   DIM_RESP_PER_MIN, coding_system=VENDOR_CS, resolution="0.1"),
-        MetricSpec("rppg.pulse", WAVE, "RPPG_PULSE_WAVE", "RPPG_PULSE_WAVE", DIM_DIMLESS,
+        MetricSpec(H_RPPG_HR_AVG, NUMERIC, "RPPG_HEART_RATE_AVG", "RPPG_HEART_RATE_AVG",
+                   U_BEAT_PER_MIN, coding_system=VENDOR_CS, resolution="0.1"),
+        MetricSpec(H_RPPG_RR_AVG, NUMERIC, "RPPG_RESP_RATE_AVG", "RPPG_RESP_RATE_AVG",
+                   U_RESP_PER_MIN, coding_system=VENDOR_CS, resolution="0.1"),
+        MetricSpec(W_RPPG_PULSE, WAVE, "RPPG_PULSE_WAVE", "RPPG_PULSE_WAVE", U_DIMLESS,
                    coding_system=VENDOR_CS, sample_rate_hz=RPPG_FS, resolution="0.0001"),
-        MetricSpec("rppg.resp", WAVE, "RPPG_RESP_WAVE", "RPPG_RESP_WAVE", DIM_DIMLESS,
+        MetricSpec(W_RPPG_RESP, WAVE, "RPPG_RESP_WAVE", "RPPG_RESP_WAVE", U_DIMLESS,
                    coding_system=VENDOR_CS, sample_rate_hz=RPPG_FS, resolution="0.0001"),
     )),
 ))
 
 AI_ECG_VMD = VmdSpec("vmd.aiecg", "AIECG_VMD", "MMPM_AIECG_VMD", (
     ChannelSpec("ch.aiecg", "AIECG_CHAN", "MMPM_AIECG_CHAN", (
-        MetricSpec("aiecg.signal", WAVE, "AIECG_SIGNAL", "AIECG_SIGNAL", DIM_MILLI_VOLT,
+        MetricSpec(W_AI_STRIP, WAVE, "AIECG_SIGNAL", "AIECG_SIGNAL", U_MILLI_VOLT,
                    coding_system=VENDOR_CS, sample_rate_hz=AI_ECG_FS, resolution="0.0001"),
-        MetricSpec("aiecg.rhythm", STRING, "AIECG_RHYTHM", "AIECG_RHYTHM", DIM_DIMLESS,
+        MetricSpec(H_AI_RHYTHM, STRING, "AIECG_RHYTHM", "AIECG_RHYTHM", U_DIMLESS,
                    coding_system=VENDOR_CS),
-        MetricSpec("aiecg.source", STRING, "AIECG_SOURCE", "AIECG_SOURCE", DIM_DIMLESS,
+        MetricSpec(H_AI_SOURCE, STRING, "AIECG_SOURCE", "AIECG_SOURCE", U_DIMLESS,
                    coding_system=VENDOR_CS),
-        MetricSpec("aiecg.latency", NUMERIC, "AIECG_INFERENCE_MS", "AIECG_INFERENCE_MS",
-                   DIM_MILLI_SEC, coding_system=VENDOR_CS, resolution="0.01"),
+        MetricSpec(H_AI_LATENCY, NUMERIC, "AIECG_INFERENCE_MS", "AIECG_INFERENCE_MS",
+                   U_MILLI_SEC, coding_system=VENDOR_CS, resolution="0.01"),
     )),
 ))
 
-ALL_VMDS = (DEVICE_VMD, RPPG_VMD, AI_ECG_VMD)
+VIDEO_VMD = VmdSpec("vmd.video", "VIDEO_VMD", "MMPM_VIDEO_VMD", (
+    ChannelSpec("ch.video", "VIDEO_MOD", "VIDEO_MOD", (
+        MetricSpec(H_VIDEO_URL, STRING, "VIDEO_STREAM_URL", "VIDEO_STREAM_URL", U_DIMLESS,
+                   coding_system=VIDEO_CS),
+    )),
+))
+
+
+def vmds_for(kind: str, ai: bool) -> tuple[VmdSpec, ...]:
+    """Monitor = bedside vitals; multimodal adds the room camera and, on the AI bed, rPPG + AI-ECG."""
+    if kind not in DEVICE_KINDS:
+        raise ValueError(f"unknown device kind {kind!r}")
+    vmds = [DEVICE_VMD]
+    if kind == MULTIMODAL:
+        vmds.append(VIDEO_VMD)
+        if ai:
+            vmds += [RPPG_VMD, AI_ECG_VMD]
+    return tuple(vmds)
+
 
 _DESCRIPTOR_QNAME = {
     NUMERIC: pm_qnames.NumericMetricDescriptor,
@@ -133,7 +198,7 @@ def _coded(code: str, ref_id: str, coding_system: str | None = None) -> pm_types
     return pm_types.CodedValue(code=code, coding_system=coding_system, symbolic_code_name=ref_id)
 
 
-def build_mdib(vmds=ALL_VMDS) -> ProviderMdib:
+def build_mdib(vmds: tuple[VmdSpec, ...]) -> ProviderMdib:
     mdib = ProviderMdib(sdc_definitions=SdcV1Definitions)
     model = mdib.data_model
 
@@ -155,7 +220,7 @@ def build_mdib(vmds=ALL_VMDS) -> ProviderMdib:
             for m in ch_spec.metrics:
                 d = add(_DESCRIPTOR_QNAME[m.kind], m.handle, ch)
                 d.Type = _coded(m.code, m.ref_id, m.coding_system)
-                d.Unit = _coded(*m.unit)
+                d.Unit = _coded(m.unit[0], m.unit[1], UCUM_CS)
                 d.MetricCategory = pm_types.MetricCategory.MEASUREMENT
                 d.MetricAvailability = pm_types.MetricAvailability.CONTINUOUS
                 if m.kind != STRING:

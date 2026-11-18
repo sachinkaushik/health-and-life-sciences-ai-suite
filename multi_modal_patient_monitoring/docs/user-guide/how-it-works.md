@@ -106,3 +106,6 @@ Putting the pieces together:
    present vitals and system status to end‑users.
 
 This modular architecture allows each component to be developed, deployed, and scaled independently while sharing common assets and infrastructure.
+
+Bedside-device data can come from OpenICE (default) or from IEEE 11073 SDC. See
+[SDC Device Source](./sdc-device-source.md).

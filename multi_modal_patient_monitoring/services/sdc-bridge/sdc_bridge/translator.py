@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from proto import vital_pb2
 
 from .forwarder import AggregatorStream
-from .mapping import AI_ECG, DEVICE, RPPG, Target, lookup
+from .mapping import AI_ECG, DEVICE, RPPG, VIDEO, Target, lookup
 
 log = logging.getLogger(__name__)
 
@@ -41,31 +41,31 @@ def _ts_ms(metric_value) -> int:
 
 
 class Translator:
-    def __init__(self, stream: AggregatorStream, device_id_prefix: str, rppg_device_id: str,
-                 wave_window_s: float = 1.0):
+    """Translates one SDC provider (bed). Only the primary bed forwards rPPG and AI-ECG data."""
+
+    def __init__(self, stream: AggregatorStream, bed_id: str, primary: bool, rppg_device_id: str,
+                 enabled: threading.Event, wave_window_s: float = 1.0):
         self._stream = stream
-        self._prefix = device_id_prefix
+        self.bed_id = bed_id
+        self.primary = primary
         self._rppg_id = rppg_device_id
+        self._enabled = enabled
         self._window_s = wave_window_s
         self._lock = threading.Lock()
         self._handles: dict[str, _Bound] = {}
-        self._device_enabled = False
         self._wave_buf: dict[str, list[float]] = {}
         self._rppg_values: dict[str, float] = {}
         self._ai_wave: tuple[int, list[float]] | None = None
         self._ai_meta: OrderedDict[int, dict] = OrderedDict()
         self._ai_snapshot: dict | None = None
+        self.video_url: str | None = None
+        self.has_video = False
+        self.has_ai = False
 
     # ---- control ----
-    @property
-    def device_enabled(self) -> bool:
-        return self._device_enabled
-
-    def set_device_enabled(self, enabled: bool) -> None:
+    def clear_buffers(self) -> None:
         with self._lock:
-            self._device_enabled = enabled
             self._wave_buf.clear()
-        log.info("device streaming %s", "ENABLED" if enabled else "DISABLED")
 
     def ai_ecg_snapshot(self) -> dict | None:
         with self._lock:
@@ -80,14 +80,25 @@ class Translator:
             target = lookup(descr.Type)
             if target is None:
                 continue
+            if not self.primary and target.group in (RPPG, AI_ECG):
+                continue
             period = getattr(descr, "SamplePeriod", None)
             # xsd:duration carries ~µs precision, so 1/120 s comes back as 120.0048 Hz.
             fs = round(1.0 / float(period), 1) if period else 0.0
             handles[descr.Handle] = _Bound(target, target.unit or _unit_name(descr), fs)
+        groups = {b.target.group for b in handles.values()}
         with self._lock:
             self._handles = handles
             self._wave_buf.clear()
-        log.info("mapped %d SDC metrics to MMPM metrics", len(handles))
+            self.has_video = VIDEO in groups
+            self.has_ai = RPPG in groups or AI_ECG in groups
+        for handle, bound in handles.items():
+            if bound.target.group == VIDEO:
+                state = mdib.states.descriptor_handle.get_one(handle, allow_none=True)
+                mv = getattr(state, "MetricValue", None)
+                if mv is not None and mv.Value:
+                    self.video_url = str(mv.Value)
+        log.info("%s: mapped %d SDC metrics to MMPM metrics", self.bed_id, len(handles))
         return len(handles)
 
     # ---- SDC callbacks ----
@@ -99,7 +110,7 @@ class Translator:
                 continue
             t = bound.target
             if t.group == DEVICE:
-                if self._device_enabled:
+                if self._enabled.is_set():
                     self._send(t, bound.unit, float(mv.Value))
             elif t.group == RPPG:
                 if t.metric in _RPPG_WAVE_VALUES:
@@ -108,6 +119,8 @@ class Translator:
                     self._send(t, bound.unit, float(mv.Value))
             elif t.group == AI_ECG:
                 self._on_ai_ecg_meta(_ts_ms(mv), t.metric, mv.Value)
+            elif t.group == VIDEO:
+                self.video_url = str(mv.Value) or None
 
     def on_waves(self, states: dict) -> None:
         for handle, state in states.items():
@@ -126,7 +139,7 @@ class Translator:
 
     # ---- helpers ----
     def _device_id(self, t: Target) -> str:
-        return self._rppg_id if t.group == RPPG else f"{self._prefix}-{t.device_suffix}"
+        return self._rppg_id if t.group == RPPG else f"{self.bed_id}-{t.device_suffix}"
 
     def _send(self, t: Target, unit: str, value: float, waveform: list[float] | None = None,
               fs: float = 0.0) -> None:
@@ -137,12 +150,14 @@ class Translator:
             vital.waveform_frequency_hz = int(round(fs))
         if t.device_type:
             vital.metadata["device_type"] = t.device_type
+        vital.metadata["bed_id"] = self.bed_id
+        vital.metadata["primary"] = "true" if self.primary else "false"
         self._stream.send(vital)
 
     def _buffer_device_wave(self, handle: str, bound: _Bound, samples: list[float]) -> None:
         # Re-chunk to ~1 s windows: the MMPM UI redraws each waveform message as a full strip.
         with self._lock:
-            if not self._device_enabled:
+            if not self._enabled.is_set():
                 return
             buf = self._wave_buf.setdefault(handle, [])
             buf.extend(samples)

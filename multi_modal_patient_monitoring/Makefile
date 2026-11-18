@@ -27,6 +27,10 @@ export TAG
 DEVICE_SOURCE ?=
 export DEVICE_SOURCE
 
+# SDC only: extra simulated beds besides bed-01, e.g. monitor,monitor,multimodal.
+SDC_EXTRA_DEVICES ?=
+export SDC_EXTRA_DEVICES
+
 MODEL_STAGING_DIR ?= $(CURDIR)/models/downloads
 RPPG_SOURCE_MODEL := $(MODEL_STAGING_DIR)/rppg/mtts_can.hdf5
 POSE_SOURCE_ARCHIVE := $(MODEL_STAGING_DIR)/3d-pose/human-pose-estimation-3d.tar.gz

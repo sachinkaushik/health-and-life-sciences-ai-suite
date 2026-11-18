@@ -8,10 +8,12 @@ from dataclasses import dataclass
 
 MDC_CS = "urn:oid:1.2.840.10004.1.1.1.0.0.1"
 VENDOR_CS = "urn:intel:hls:mmpm"
+VIDEO_CS = "urn:research:video"
 
 DEVICE = "device"
 RPPG = "rppg"
 AI_ECG = "ai-ecg"
+VIDEO = "video"
 
 
 @dataclass(frozen=True)
@@ -35,6 +37,10 @@ def _ibp(metric: str) -> Target:
     return Target(DEVICE, metric, "IBP_Simulator", "ibp")
 
 
+def _spo2(metric: str) -> Target:
+    return Target(DEVICE, metric, "PulseOx_Simulator", "spo2")
+
+
 # Device-type names match what dds-bridge reports for the OpenICE simulators.
 CODE_MAP: dict[tuple[str, str], Target] = {
     (MDC_CS, "147842"): _ecg("MDC_ECG_HEART_RATE"),
@@ -42,11 +48,15 @@ CODE_MAP: dict[tuple[str, str], Target] = {
     (MDC_CS, "131329"): _ecg("MDC_ECG_LEAD_I"),
     (MDC_CS, "131330"): _ecg("MDC_ECG_LEAD_II"),
     (MDC_CS, "131389"): _ecg("MDC_ECG_LEAD_III"),
+    (MDC_CS, "150456"): _spo2("MDC_PULS_OXIM_SAT_O2"),
+    (MDC_CS, "150452"): _spo2("MDC_PULS_OXIM_PLETH"),
+    (MDC_CS, "150364"): Target(DEVICE, "MDC_TEMP_BODY", "Temp_Simulator", "temp"),
     (MDC_CS, "151708"): _co2("MDC_AWAY_CO2_ET"),
     (MDC_CS, "151586"): _co2("MDC_CO2_RESP_RATE"),
     (MDC_CS, "151704"): _co2("MDC_AWAY_CO2"),
     (MDC_CS, "150037"): _ibp("MDC_PRESS_BLD_ART_ABP_SYS"),
     (MDC_CS, "150038"): _ibp("MDC_PRESS_BLD_ART_ABP_DIA"),
+    (MDC_CS, "150039"): _ibp("MDC_PRESS_BLD_ART_ABP_MEAN"),
     (MDC_CS, "150036"): _ibp("MDC_PRESS_BLD"),
     (VENDOR_CS, "RPPG_HEART_RATE"): Target(RPPG, "HEART_RATE", unit="BPM"),
     (VENDOR_CS, "RPPG_RESP_RATE"): Target(RPPG, "RESP_RATE", unit="BrPM"),
@@ -58,6 +68,7 @@ CODE_MAP: dict[tuple[str, str], Target] = {
     (VENDOR_CS, "AIECG_RHYTHM"): Target(AI_ECG, "result"),
     (VENDOR_CS, "AIECG_SOURCE"): Target(AI_ECG, "file"),
     (VENDOR_CS, "AIECG_INFERENCE_MS"): Target(AI_ECG, "inference_ms"),
+    (VIDEO_CS, "VIDEO_STREAM_URL"): Target(VIDEO, "video_stream_url"),
 }
 
 

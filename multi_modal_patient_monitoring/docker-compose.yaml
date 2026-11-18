@@ -41,6 +41,8 @@ services:
       - HTTP_PORT=8001
       # Device source control endpoint: dds-bridge (:8082, openice) or sdc-bridge (:8092, sdc).
       - DDS_BRIDGE_CONTROL_URL=${DEVICE_CONTROL_URL:-http://localhost:8082}
+      # SDC only: sdc-gateway device-management API (add/remove simulated beds).
+      - SDC_GATEWAY_URL=http://localhost:8093
       - AI_ECG_URL=${AGGREGATOR_AI_ECG_URL:-http://localhost:8000/predict_stream_next}
     network_mode: "host"
     
@@ -128,6 +130,14 @@ services:
       - SDC_SSL_DIR=${SDC_SSL_DIR:-}
       - RPPG_GRPC_PORT=50061
       - AI_ECG_URL=http://localhost:8000/predict_stream_next
+      - SDC_FACILITY=${SDC_FACILITY:-MMPM}
+      - SDC_EXTRA_DEVICES=${SDC_EXTRA_DEVICES:-}
+      - SDC_MAX_DEVICES=${SDC_MAX_DEVICES:-16}
+      # Empty = the 3D-pose MJPEG stream on this host (http://<host>:8085/video_feed).
+      - VIDEO_STREAM_URLS=${VIDEO_STREAM_URLS:-}
+      # Device-management API; localhost only (no authentication).
+      - SDC_MGMT_HOST=127.0.0.1
+      - SDC_MGMT_PORT=8093
 
   sdc-bridge:
     build:
@@ -147,6 +157,7 @@ services:
       - GRPC_HOST=localhost
       - GRPC_PORT=50051
       - CONTROL_PORT=8092
+      - SDC_FACILITY=${SDC_FACILITY:-MMPM}
     depends_on:
       patient-monitoring-aggregator:
         condition: service_started

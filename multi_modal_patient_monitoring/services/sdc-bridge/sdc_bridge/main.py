@@ -13,8 +13,7 @@ from sdc11073.certloader import mk_ssl_contexts_from_folder
 
 from .api import create_app
 from .forwarder import AggregatorStream
-from .sdc_client import SdcConnector
-from .translator import Translator
+from .sdc_client import SdcFleet
 
 log = logging.getLogger("sdc_bridge")
 
@@ -39,26 +38,23 @@ def main() -> int:
 
     ssl_dir = os.getenv("SDC_SSL_DIR")
     stream = AggregatorStream(f"{os.getenv('GRPC_HOST', 'localhost')}:{os.getenv('GRPC_PORT', '50051')}")
-    translator = Translator(
+    fleet = SdcFleet(
         stream,
-        device_id_prefix=os.getenv("DEVICE_ID_PREFIX", "sdc-monitor"),
+        bind_ip=os.getenv("SDC_BIND_IP") or detect_bind_ip(),
+        facility=os.getenv("SDC_FACILITY", "MMPM") or None,
+        primary_epr=os.getenv("SDC_PROVIDER_EPR", DEFAULT_PROVIDER_EPR) or None,
         rppg_device_id=os.getenv("RPPG_DEVICE_ID", "rppg-001"),
         wave_window_s=int(os.getenv("WAVE_FORWARD_MS", "1000")) / 1000.0,
-    )
-    connector = SdcConnector(
-        translator,
-        bind_ip=os.getenv("SDC_BIND_IP") or detect_bind_ip(),
-        provider_epr=os.getenv("SDC_PROVIDER_EPR", DEFAULT_PROVIDER_EPR) or None,
         provider_xaddr=os.getenv("SDC_PROVIDER_XADDR") or None,
         ssl_context=mk_ssl_contexts_from_folder(ssl_dir) if ssl_dir else None,
     )
     stream.start()
-    connector.start()
+    fleet.start()
     try:
-        uvicorn.run(create_app(translator, connector), host="0.0.0.0",
+        uvicorn.run(create_app(fleet), host="0.0.0.0",
                     port=int(os.getenv("CONTROL_PORT", "8092")), log_level="warning")
     finally:
-        connector.stop()
+        fleet.stop()
         stream.stop()
     return 0
 

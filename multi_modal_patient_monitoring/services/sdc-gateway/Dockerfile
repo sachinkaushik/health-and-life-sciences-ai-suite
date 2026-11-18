@@ -18,7 +18,8 @@ COPY sdc_gateway ./sdc_gateway
 RUN useradd --system --uid 10001 sdc
 USER sdc
 
-# rPPG gRPC ingest; SDC/DPWS uses WS-Discovery (UDP 3702) and an ephemeral HTTP port.
-EXPOSE 50061
+# rPPG gRPC ingest and device-management REST API; SDC/DPWS uses WS-Discovery (UDP 3702) and
+# one ephemeral HTTP port per bed.
+EXPOSE 50061 8093
 
 CMD ["python", "-m", "sdc_gateway.main"]

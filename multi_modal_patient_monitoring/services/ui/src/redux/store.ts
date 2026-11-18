@@ -5,6 +5,7 @@ import servicesReducer from './slices/servicesSlice';
 import eventsReducer from './slices/eventsSlice';
 import { sseMiddleware } from './middleware/sseMiddleware';
 import metricsReducer from './slices/metricsSlice';
+import bedsReducer from './slices/bedsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ export const store = configureStore({
     services: servicesReducer,
     events: eventsReducer,
     metrics: metricsReducer,
+    beds: bedsReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

@@ -1,6 +1,26 @@
 import type { Middleware } from '@reduxjs/toolkit';
 import { addEvent } from '../slices/eventsSlice';
 import { updateWorkloadData, setAggregatorStatus } from '../slices/servicesSlice';
+import { bedVital } from '../slices/bedsSlice';
+import type { BedNumerics, BedWaveKind } from '../slices/bedsSlice';
+
+// Device-source metric names (OpenICE / SDC bridge) -> central-station fields.
+const BED_NUMERICS: Record<string, keyof BedNumerics> = {
+  MDC_ECG_HEART_RATE: 'HR',
+  MDC_TTHOR_RESP_RATE: 'RR',
+  MDC_PULS_OXIM_SAT_O2: 'SpO2',
+  MDC_TEMP_BODY: 'TEMP',
+  MDC_AWAY_CO2_ET: 'CO2_ET',
+  MDC_PRESS_BLD_ART_ABP_SYS: 'BP_SYS',
+  MDC_PRESS_BLD_ART_ABP_DIA: 'BP_DIA',
+  MDC_PRESS_BLD_ART_ABP_MEAN: 'BP_MAP',
+};
+const BED_WAVES: Record<string, BedWaveKind> = {
+  MDC_ECG_LEAD_II: 'ECG',
+  MDC_PULS_OXIM_PLETH: 'PLETH',
+  MDC_AWAY_CO2: 'CO2',
+  MDC_PRESS_BLD: 'BP',
+};
 
 export const sseMiddleware: Middleware = (store) => {
   let eventSource: EventSource | null = null;
@@ -160,6 +180,28 @@ export const sseMiddleware: Middleware = (store) => {
           const isProcessing = state.app?.isProcessing;
           if (!isProcessing) {
             return;
+          }
+
+          // SDC device source: every bed feeds the central station; only the primary
+          // bed also feeds the single-patient MDPNP card below.
+          if (workloadType === 'mdpnp' && rawData.bed_id) {
+            const metric = payload.metric;
+            if (eventType === 'numeric' && metric in BED_NUMERICS) {
+              store.dispatch(bedVital({
+                bedId: rawData.bed_id,
+                numerics: { [BED_NUMERICS[metric]]: payload.value },
+                ts: timestamp,
+              }));
+            } else if (eventType === 'waveform' && metric in BED_WAVES && Array.isArray(payload.waveform)) {
+              store.dispatch(bedVital({
+                bedId: rawData.bed_id,
+                wave: { kind: BED_WAVES[metric], samples: payload.waveform },
+                ts: timestamp,
+              }));
+            }
+            if (!rawData.primary) {
+              return;
+            }
           }
 
           // Dispatch to Redux

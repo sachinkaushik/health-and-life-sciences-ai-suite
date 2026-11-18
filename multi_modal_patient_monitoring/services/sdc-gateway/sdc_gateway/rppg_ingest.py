@@ -12,6 +12,7 @@ from google.protobuf.empty_pb2 import Empty
 
 from proto import vital_pb2, vital_pb2_grpc
 
+from . import mdib_model as m
 from .mdib_model import RPPG_FS
 from .writer import MdibWriter
 
@@ -19,10 +20,10 @@ log = logging.getLogger(__name__)
 
 # rPPG metric name -> (numeric handle, waveform handle)
 _RPPG_MAP = {
-    "HEART_RATE": ("rppg.hr", "rppg.pulse"),
-    "RESP_RATE": ("rppg.rr", "rppg.resp"),
-    "HEART_RATE_AVG": ("rppg.hr_avg", None),
-    "RESP_RATE_AVG": ("rppg.rr_avg", None),
+    "HEART_RATE": (m.H_RPPG_HR, m.W_RPPG_PULSE),
+    "RESP_RATE": (m.H_RPPG_RR, m.W_RPPG_RESP),
+    "HEART_RATE_AVG": (m.H_RPPG_HR_AVG, None),
+    "RESP_RATE_AVG": (m.H_RPPG_RR_AVG, None),
 }
 
 

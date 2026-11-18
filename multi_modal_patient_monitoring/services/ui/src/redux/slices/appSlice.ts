@@ -2,12 +2,15 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 
+export type AppView = 'workloads' | 'central';
+
 interface AppState {
   projectName: string;
   isProcessing: boolean;
   isLocked: boolean;
   lockReason: string | null;
   expandedWorkload: string | null;
+  view: AppView;
 }
 
 const initialState: AppState = {
@@ -16,6 +19,7 @@ const initialState: AppState = {
   isLocked: false,
   lockReason: null,
   expandedWorkload: null,
+  view: 'workloads',
 };
 
 
@@ -39,8 +43,11 @@ const appSlice = createSlice({
     setExpandedWorkload: (state, action: PayloadAction<string | null>) => { // Add this reducer
       state.expandedWorkload = action.payload;
     },
+    setView: (state, action: PayloadAction<AppView>) => {
+      state.view = action.payload;
+    },
   },
 });
 
-export const { setProjectName, startProcessing, stopProcessing, setStreamingLock, setExpandedWorkload } = appSlice.actions;
+export const { setProjectName, startProcessing, stopProcessing, setStreamingLock, setExpandedWorkload, setView } = appSlice.actions;
 export default appSlice.reducer;

@@ -2,14 +2,25 @@
 import React, { useState } from "react";
 import LeftPanel from "../LeftPanel/LeftPanel";
 import RightPanel from "../RightPanel/RightPanel";
+import CentralStation from "../CentralStation/CentralStation";
+import { useAppSelector } from "../../redux/hooks";
 import "../../assets/css/Body.css";
 
 const Body: React.FC = () => {
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
+  const view = useAppSelector((state) => state.app.view);
 
   const toggleRightPanel = () => {
     setIsRightPanelCollapsed(!isRightPanelCollapsed);
   };
+
+  if (view === 'central') {
+    return (
+      <div className="container">
+        <CentralStation />
+      </div>
+    );
+  }
 
   return (
     <div className="container">

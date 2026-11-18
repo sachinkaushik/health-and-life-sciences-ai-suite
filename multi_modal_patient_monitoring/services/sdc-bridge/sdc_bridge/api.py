@@ -6,38 +6,42 @@ from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException
 
-from .sdc_client import SdcConnector
-from .translator import Translator
+from .sdc_client import SdcFleet
 
 
-def create_app(translator: Translator, connector: SdcConnector) -> FastAPI:
+def create_app(fleet: SdcFleet) -> FastAPI:
     app = FastAPI(title="MMPM SDC Bridge")
 
     @app.post("/start")
     def start():
-        translator.set_device_enabled(True)
+        fleet.set_enabled(True)
         return {"status": "started"}
 
     @app.post("/stop")
     def stop():
-        translator.set_device_enabled(False)
+        fleet.set_enabled(False)
         return {"status": "stopped"}
 
     @app.get("/status")
     def status():
         return {
-            "enabled": translator.device_enabled,
-            "connected": connector.connected,
-            "provider": connector.provider,
+            "enabled": fleet.enabled.is_set(),
+            "connected": fleet.connected,
+            "provider": fleet.provider,
+            "beds": fleet.beds(),
         }
+
+    @app.get("/beds")
+    def beds():
+        return {"enabled": fleet.enabled.is_set(), "beds": fleet.beds()}
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "sdc_connected": connector.connected}
+        return {"status": "ok", "sdc_connected": fleet.connected}
 
     @app.get("/predict_stream_next")
     def predict_stream_next():
-        snapshot = translator.ai_ecg_snapshot()
+        snapshot = fleet.ai_ecg_snapshot()
         if snapshot is None:
             raise HTTPException(status_code=503, detail="no AI-ECG result received over SDC yet")
         return snapshot
