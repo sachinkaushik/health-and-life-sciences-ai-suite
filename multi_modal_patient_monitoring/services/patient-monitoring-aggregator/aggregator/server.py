@@ -201,13 +201,13 @@ def list_devices():
 
 @app.post("/devices")
 async def add_device(request: Request):
-    """Add a simulated bed: body {"type": "monitor" | "multimodal"}."""
+    """Add a simulated room: body {"type": "room"} ("monitor" and "multimodal" are still accepted)."""
     try:
         body = await request.json()
     except Exception:
         raise HTTPException(status_code=400, detail="JSON body required")
-    if not isinstance(body, dict) or body.get("type") not in ("monitor", "multimodal"):
-        raise HTTPException(status_code=422, detail="type must be 'monitor' or 'multimodal'")
+    if not isinstance(body, dict) or body.get("type") not in ("room", "monitor", "multimodal"):
+        raise HTTPException(status_code=422, detail="type must be 'room', 'monitor' or 'multimodal'")
     return await asyncio.to_thread(_proxy, "POST", f"{SDC_GATEWAY_URL}/devices", json={"type": body["type"]})
 
 

@@ -13,7 +13,7 @@ from .devices import DeviceConflict, DeviceManager, UnknownDevice
 
 
 class NewDevice(BaseModel):
-    type: Literal["monitor", "multimodal"]
+    type: Literal["room", "monitor", "multimodal"]
 
 
 def create_app(manager: DeviceManager) -> FastAPI:

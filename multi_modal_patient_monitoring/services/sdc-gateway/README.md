@@ -18,7 +18,7 @@ There are two kinds of bed:
 | | `ch.ibp` | `numeric.nibp_sys`, `numeric.nibp_dia`, `numeric.nibp_map`, `wave.abp` (120 Hz) | Built-in simulator | all |
 | `vmd.video` | `ch.video` | `string.video_stream_url` | `VIDEO_STREAM_URLS` | multimodal |
 | `vmd.rppg` | `ch.rppg` | `numeric.rppg_hr`, `numeric.rppg_rr`, `numeric.rppg_hr_avg`, `numeric.rppg_rr_avg`, `wave.rppg`, `wave.rppg_resp` (30 Hz) | rPPG service over gRPC `StreamVitals` (:50061) | `bed-01` |
-| `vmd.aiecg` | `ch.aiecg` | `wave.ai_rhythm_strip` (360 Hz), `string.ai_rhythm`, `string.ai_rhythm_source`, `numeric.ai_rhythm_latency` | Polls the AI-ECG service | `bed-01` |
+| `vmd.aiecg` | `ch.aiecg` | `wave.ai_rhythm_strip` (300 Hz), `string.ai_rhythm`, `string.ai_rhythm_source`, `numeric.ai_rhythm_latency` | Polls the AI-ECG service | `bed-01` |
 
 The handles and UCUM units (coding system `urn:oid:1.2.840.10008.2.16.4`) follow the convention that SDC central
 stations such as the SDC-Dashboard read. The pressure numerics use the arterial-line MDC codes. The waveforms are sent

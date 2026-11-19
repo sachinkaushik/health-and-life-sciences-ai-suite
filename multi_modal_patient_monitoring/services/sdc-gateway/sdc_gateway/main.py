@@ -65,14 +65,14 @@ def main() -> int:
     ssl_ctx = mk_ssl_contexts_from_folder(ssl_dir) if ssl_dir else None
     manager = DeviceManager(wsd, ssl_ctx, cfg)
 
-    # bed-01 is the primary multimodal bed: it carries the live rPPG and AI-ECG workloads.
+    # room-01 is the primary room: it carries the live rPPG and AI-ECG workloads.
     primary = manager.add(m.MULTIMODAL, ai=True, primary=True, epr=os.getenv("SDC_EPR", DEFAULT_EPR))
     for kind in _env_list("SDC_EXTRA_DEVICES"):
         try:
             manager.add(kind)
         except Exception as exc:
             log.error("cannot add extra device %r: %s", kind, exc)
-    log.info("SDC gateway up on %s (TLS %s), %d bed(s)", bind_ip, "on" if ssl_ctx else "off",
+    log.info("SDC gateway up on %s (TLS %s), %d room(s)", bind_ip, "on" if ssl_ctx else "off",
              len(manager.list()))
 
     rppg_server = start_rppg_server(primary.writer, rppg_port) if _env_bool("RPPG_ENABLED", True) else None

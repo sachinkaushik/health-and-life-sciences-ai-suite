@@ -45,7 +45,7 @@ class AIECGClient:
                 "metric": "ECG",
                 "timestamp": int(time.time() * 1000),
                 "waveform": signal,
-                "waveform_frequency_hz": 360,
+                "waveform_frequency_hz": 300,
                 "inference": result,
                 "file": filename, 
             }
@@ -77,7 +77,7 @@ def run_ai_ecg_stream():
                     unit="class",
                     timestamp=int(time.time() * 1000),
                     waveform=signal,
-                    waveform_frequency_hz=360,
+                    waveform_frequency_hz=300,
                 )
                 time.sleep(1)
             except Exception as e:

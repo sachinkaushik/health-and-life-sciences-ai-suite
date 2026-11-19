@@ -3,14 +3,13 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { setBeds, setBedsUnavailable } from '../../redux/slices/bedsSlice';
 import { api } from '../../services/api';
-import type { DeviceKind } from '../../services/api';
 import BedTile from './BedTile';
 import DevicesPanel from './DevicesPanel';
 import type { PendingBed } from './DevicesPanel';
 import '../../assets/css/CentralStation.css';
 
 const POLL_MS = 3000;
-// Poll faster while waiting for sdc-bridge to discover or drop a bed.
+// Poll faster while waiting for sdc-bridge to discover or drop a room.
 const PENDING_POLL_MS = 1000;
 const PENDING_TIMEOUT_MS = 30000;
 
@@ -20,7 +19,7 @@ const CentralStation: React.FC = () => {
   const dispatch = useAppDispatch();
   const { list, live, available } = useAppSelector((state) => state.beds);
   const isProcessing = useAppSelector((state) => state.app.isProcessing);
-  const [requesting, setRequesting] = useState<DeviceKind | null>(null);
+  const [requesting, setRequesting] = useState(false);
   const [adding, setAdding] = useState<PendingBed[]>([]);
   const [removing, setRemoving] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +44,7 @@ const CentralStation: React.FC = () => {
     return () => clearInterval(id);
   }, [refresh, pending]);
 
-  // A pending add is done once the bridge lists the bed; a pending removal once it no longer does.
+  // A pending add is done once the bridge lists the room; a pending removal once it no longer does.
   useEffect(() => {
     const ids = new Set(list.map((b) => b.bed_id));
     setAdding((prev) => (prev.some((p) => ids.has(p.bedId)) ? prev.filter((p) => !ids.has(p.bedId)) : prev));
@@ -75,16 +74,16 @@ const CentralStation: React.FC = () => {
     }
   }, [tick, adding, removing]);
 
-  const onAdd = async (type: DeviceKind) => {
-    setRequesting(type);
+  const onAdd = async () => {
+    setRequesting(true);
     setError(null);
     try {
-      const bed = await api.addDevice(type);
-      setAdding((prev) => [...prev, { bedId: bed.bed_id, type, since: Date.now() }]);
+      const bed = await api.addRoom();
+      setAdding((prev) => [...prev, { bedId: bed.bed_id, since: Date.now() }]);
     } catch (e) {
       setError(errorText(e));
     } finally {
-      setRequesting(null);
+      setRequesting(false);
     }
   };
 
@@ -138,15 +137,15 @@ const CentralStation: React.FC = () => {
             <div key={p.bedId} className="bed-tile pending">
               <span className="cs-spinner" />
               <b>Adding {p.bedId}</b>
-              <small>Waiting for the SDC bridge to discover the new device…</small>
+              <small>Waiting for the SDC bridge to discover the new room…</small>
             </div>
           ))}
           {list.length === 0 && adding.length === 0 && (
-            <div className="central-empty">Waiting for SDC devices to be discovered…</div>
+            <div className="central-empty">Waiting for rooms to be discovered…</div>
           )}
         </div>
       ) : (
-        <div className="central-hint">Press Start to stream vitals from the beds and to add or remove beds.</div>
+        <div className="central-hint">Press Start to stream vitals from the rooms and to add or remove rooms.</div>
       )}
     </div>
   );

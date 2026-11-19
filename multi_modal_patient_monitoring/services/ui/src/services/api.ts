@@ -224,11 +224,11 @@ export async function getBeds(): Promise<{ enabled: boolean; beds: BedInfo[] }> 
   return jsonOrThrow(await fetch(`${BASE_URL}/beds`, { cache: 'no-store' }));
 }
 
-export async function addDevice(type: DeviceKind): Promise<{ bed_id: string }> {
+export async function addRoom(): Promise<{ bed_id: string }> {
   return jsonOrThrow(await fetch(`${BASE_URL}/devices`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type }),
+    body: JSON.stringify({ type: 'room' }),
   }));
 }
 
@@ -261,7 +261,7 @@ export const api = {
   getWorkloadDevices,  
   getEventsUrl,
   getBeds,
-  addDevice,
+  addRoom,
   removeDevice,
 };
 

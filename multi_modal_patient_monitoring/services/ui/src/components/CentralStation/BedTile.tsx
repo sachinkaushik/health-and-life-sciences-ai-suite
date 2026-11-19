@@ -62,7 +62,7 @@ const BedTile: React.FC<{
         {bed.primary && <span className="bed-badge primary" title="Feeds the workload view">Primary</span>}
         <span className="bed-spacer" />
         {onRemove && !bed.primary && (
-          <button className="bed-remove" onClick={() => onRemove(bed.bed_id)} disabled={removing} title="Remove device">
+          <button className="bed-remove" onClick={() => onRemove(bed.bed_id)} disabled={removing} title="Remove room">
             ✕
           </button>
         )}

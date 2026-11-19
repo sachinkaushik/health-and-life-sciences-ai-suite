@@ -151,7 +151,7 @@ class SdcFleet:
                 self._prune_disconnected()
                 if self._xaddr:
                     if not self._sessions:
-                        self._open(self._xaddr, "bed-01", "", lambda: SdcConsumer(
+                        self._open(self._xaddr, "room-01", "", lambda: SdcConsumer(
                             self._xaddr, SdcV1Definitions, self._ssl))
                 else:
                     with self._lock:
@@ -202,9 +202,11 @@ class SdcFleet:
             return False
         if service.epr in self._sessions:
             return True
-        bed_id = self._unique_bed_id((loc.bed if loc else None) or service.epr.rsplit(":", 1)[-1][:8])
+        # MMPM rooms publish their ID in the location's room field; other providers may only set a bed.
+        place = (loc.rm or loc.bed) if loc else None
+        bed_id = self._unique_bed_id(place or service.epr.rsplit(":", 1)[-1][:8])
         try:
-            self._open(service.epr, bed_id, f"{loc.fac}/{loc.poc}/{loc.bed}" if loc else "",
+            self._open(service.epr, bed_id, f"{loc.fac}/{loc.poc}/{place}" if loc else "",
                        lambda s=service: SdcConsumer.from_wsd_service(s, ssl_context_container=self._ssl))
         except Exception as exc:
             log.warning("cannot connect to SDC provider %s (%s): %s", bed_id, service.epr, exc)

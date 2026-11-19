@@ -53,7 +53,7 @@ data comes from the SDC gateway's built-in simulator.
    | | `ch.ibp` | `numeric.nibp_sys` / `_dia` / `_map` (arterial-line codes), `wave.abp` | Built-in simulator | all |
    | `vmd.video` | `ch.video` | `string.video_stream_url` | Camera URL | multimodal |
    | `vmd.rppg` | `ch.rppg` | `numeric.rppg_hr`, `numeric.rppg_rr`, averages, `wave.rppg`, `wave.rppg_resp` | rPPG service | `bed-01` |
-   | `vmd.aiecg` | `ch.aiecg` | `wave.ai_rhythm_strip` (360 Hz), `string.ai_rhythm`, `string.ai_rhythm_source`, `numeric.ai_rhythm_latency` | AI-ECG service | `bed-01` |
+   | `vmd.aiecg` | `ch.aiecg` | `wave.ai_rhythm_strip` (300 Hz), `string.ai_rhythm`, `string.ai_rhythm_source`, `numeric.ai_rhythm_latency` | AI-ECG service | `bed-01` |
 
    Numerics update once per second. Waveforms are sent as real-time sample arrays in 200 ms
    chunks.

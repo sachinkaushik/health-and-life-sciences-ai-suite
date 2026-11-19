@@ -1,0 +1,522 @@
+<mxfile host="app.diagrams.net" type="device">
+  <diagram id="lld-components" name="1 - Component LLD">
+    <mxGraphModel dx="2400" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="2400" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="MMPM SDC device source - low-level design (component view)" style="text;html=1;fontSize=20;fontStyle=1;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="20" y="-50" width="1200" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== AI workloads ===================== -->
+        <mxCell id="cW" value="AI workloads (existing services)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF1F2;strokeColor=#E11D48;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontStyle=1;fontSize=13;arcSize=2;" vertex="1" parent="1">
+          <mxGeometry x="20" y="50" width="340" height="470" as="geometry" />
+        </mxCell>
+        <mxCell id="wR" value="&lt;b&gt;rppg&lt;/b&gt; (rPPG service)&lt;br&gt;sample.mp4, 30 fps, looped → face ROI 36×36, batch 10&lt;br&gt;MTTS-CAN (OpenVINO, RPPG_DEVICE)&lt;br&gt;band-pass + FFT → HR / RR + 30 Hz waves&lt;br&gt;gRPC StreamVitals → AGGREGATOR_PORT (50061 in SDC mode)&lt;br&gt;control :8084 /start /stop /status" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E11D48;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="90" width="300" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="wE" value="&lt;b&gt;ai-ecg&lt;/b&gt; backend :8000&lt;br&gt;GET /predict_stream_next → next .mat record (300 Hz)&lt;br&gt;HuBERT-ECG (OpenVINO) → embedding, inference_ms&lt;br&gt;signal_classifier.py → rhythm label&lt;br&gt;JSON: signal, result, file, inference_ms" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E11D48;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="225" width="300" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="wP" value="&lt;b&gt;3d-pose-estimation&lt;/b&gt;&lt;br&gt;walking video, about 20 fps, looped&lt;br&gt;human-pose-estimation-3d-0001 (POSE_3D_DEVICE)&lt;br&gt;19 joints 2D / 3D, detect_activity()&lt;br&gt;gRPC PublishPose → aggregator :50051&lt;br&gt;MJPEG :8085/video_feed (camera of multimodal beds)&lt;br&gt;control :8083 /start /stop /status" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E11D48;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="360" width="300" height="140" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== sdc-gateway ===================== -->
+        <mxCell id="cG" value="sdc-gateway (SDC provider, sdc11073) - services/sdc-gateway/sdc_gateway" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#2563EB;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontStyle=1;fontSize=13;arcSize=1;" vertex="1" parent="1">
+          <mxGeometry x="400" y="50" width="620" height="830" as="geometry" />
+        </mxCell>
+        <mxCell id="gMain" value="&lt;b&gt;main.py&lt;/b&gt;&lt;br&gt;env → DeviceConfig (facility MMPM, poc ICU, 200 ms chunks, video URLs, max 16)&lt;br&gt;WSDiscovery(bind_ip).start()&lt;br&gt;add bed-01 (multimodal, ai, primary, fixed EPR) + SDC_EXTRA_DEVICES&lt;br&gt;start RppgIngest, AiEcgPoller, uvicorn" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2563EB;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="420" y="90" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="gApi" value="&lt;b&gt;api.py&lt;/b&gt; - FastAPI 127.0.0.1:8093&lt;br&gt;GET /devices&lt;br&gt;POST /devices {type: monitor or multimodal}&lt;br&gt;DELETE /devices/{bed_id} (409 for the primary bed)&lt;br&gt;GET /health" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2563EB;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="720" y="90" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="gMgr" value="&lt;b&gt;devices.py · DeviceManager&lt;/b&gt;&lt;br&gt;add(kind): next bed-NN, stable EPR (uuid5), serial MMPM-NNNN, round-robin video URL&lt;br&gt;→ build_mdib(vmds_for(kind, ai)) → MdibWriter → SdcProvider.start_all() → set video URL → set_location(MMPM/ICU/bed-NN) → DeviceSimulator.start()&lt;br&gt;remove(bed_id): sim.stop() → provider.stop_all() (sends WS-Discovery Bye, ends subscriptions)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2563EB;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="420" y="205" width="580" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="gBed" value="Bed (one per bed-NN)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DBEAFE;strokeColor=#2563EB;dashed=1;verticalAlign=top;align=left;spacingLeft=8;spacingTop=2;fontStyle=3;fontSize=11;arcSize=2;" vertex="1" parent="1">
+          <mxGeometry x="420" y="315" width="580" height="345" as="geometry" />
+        </mxCell>
+        <mxCell id="gModel" value="&lt;b&gt;mdib_model.py&lt;/b&gt;&lt;br&gt;vmds_for(): DEVICE_VMD always&lt;br&gt;+ VIDEO_VMD (multimodal)&lt;br&gt;+ RPPG_VMD, AI_ECG_VMD (AI bed only)&lt;br&gt;build_mdib(): MDS → VMD → Channel → Metric descriptors, codes, units, SamplePeriod; states ON / VALID" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2563EB;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="440" y="345" width="260" height="125" as="geometry" />
+        </mxCell>
+        <mxCell id="gMdib" value="&lt;b&gt;ProviderMdib&lt;/b&gt; (sdc11073)&lt;br&gt;descriptors (fixed layout)&lt;br&gt;metric states (live values)&lt;br&gt;each transaction → report to subscribers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2563EB;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="720" y="345" width="260" height="125" as="geometry" />
+        </mxCell>
+        <mxCell id="gSim" value="&lt;b&gt;simulator.py · DeviceSimulator&lt;/b&gt;&lt;br&gt;_numeric_loop (1 s): _Vital = baseline + drift·sin(t) + jitter, clamped → HR, RR, SpO2, Temp, EtCO2, Sys, Dia, MAP&lt;br&gt;_wave_loop (200 ms): beat / breath phase →&lt;br&gt;_ecg: PQRST Gaussians (250 Hz)&lt;br&gt;_arterial: pleth (100 Hz), ABP (120 Hz)&lt;br&gt;_capnogram: CO2 (20 Hz)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2563EB;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="440" y="485" width="260" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="gWriter" value="&lt;b&gt;writer.py · MdibWriter&lt;/b&gt;&lt;br&gt;set_metrics() → metric_state_transaction&lt;br&gt;push_samples() → rt_sample_state_transaction" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2563EB;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="720" y="485" width="260" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="gProv" value="&lt;b&gt;SdcProvider&lt;/b&gt; (sdc11073, DPWS)&lt;br&gt;GetMdib, Subscribe&lt;br&gt;EpisodicMetricReport (numerics, strings)&lt;br&gt;WaveformStream (waves)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2563EB;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="720" y="570" width="260" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="gRppg" value="&lt;b&gt;rppg_ingest.py · RppgIngest&lt;/b&gt;&lt;br&gt;gRPC VitalService :50061 (StreamVitals / PublishVital)&lt;br&gt;_RPPG_MAP: HEART_RATE → numeric.rppg_hr + wave.rppg, RESP_RATE → numeric.rppg_rr + wave.rppg_resp, *_AVG → numerics&lt;br&gt;→ bed-01 MdibWriter" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2563EB;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="420" y="675" width="280" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="gEcg" value="&lt;b&gt;ai_ecg_poller.py · AiEcgPoller&lt;/b&gt;&lt;br&gt;GET AI_ECG_URL every 1 s&lt;br&gt;push_samples(wave.ai_rhythm_strip, 300 Hz)&lt;br&gt;set_metrics(string.ai_rhythm, string.ai_rhythm_source, numeric.ai_rhythm_latency), same timestamp&lt;br&gt;→ bed-01 MdibWriter" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2563EB;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="720" y="675" width="280" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="gWsd" value="&lt;b&gt;WSDiscovery&lt;/b&gt; (UDP 3702 multicast)&lt;br&gt;Hello on provider start_all · Bye on stop_all · answers Probe" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#15803D;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="420" y="800" width="280" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== SDC network ===================== -->
+        <mxCell id="nNet" value="&lt;b&gt;IEEE 11073 SDC&lt;/b&gt;&lt;br&gt;(host network)&lt;br&gt;&lt;br&gt;&lt;b&gt;WS-Discovery&lt;/b&gt;&lt;br&gt;Hello / Bye / Probe&lt;br&gt;&lt;br&gt;&lt;b&gt;DPWS (SOAP over HTTP)&lt;/b&gt;&lt;br&gt;GetMdib&lt;br&gt;Subscribe&lt;br&gt;&lt;br&gt;&lt;b&gt;Reports&lt;/b&gt;&lt;br&gt;EpisodicMetricReport&lt;br&gt;WaveformStream" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;align=center;verticalAlign=middle;fontSize=11;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="1045" y="50" width="170" height="830" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== sdc-bridge ===================== -->
+        <mxCell id="cB" value="sdc-bridge (SDC consumer) - services/sdc-bridge/sdc_bridge" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F0FDF4;strokeColor=#16A34A;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontStyle=1;fontSize=13;arcSize=1;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="50" width="560" height="830" as="geometry" />
+        </mxCell>
+        <mxCell id="bMain" value="&lt;b&gt;main.py&lt;/b&gt;&lt;br&gt;AggregatorStream(GRPC_HOST:50051)&lt;br&gt;SdcFleet(facility MMPM, primary EPR, rppg-001, 1 s wave window)&lt;br&gt;uvicorn :8092" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#16A34A;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="1260" y="90" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="bApi" value="&lt;b&gt;api.py&lt;/b&gt; - FastAPI :8092&lt;br&gt;POST /start, /stop → set_enabled()&lt;br&gt;GET /beds, /status, /health&lt;br&gt;GET /predict_stream_next → AI-ECG snapshot (503 if none yet)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#16A34A;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="1530" y="90" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="bFleet" value="&lt;b&gt;sdc_client.py · SdcFleet&lt;/b&gt; (thread _run)&lt;br&gt;_on_hello / _on_bye → queue + _wake (instant add / drop)&lt;br&gt;_run: _prune_disconnected → _drop(byes) → _consider(hellos), else _scan() every 5 s&lt;br&gt;_scan: search_services(timeout 3 s) → _consider → _prune_missing&lt;br&gt;_consider: facility filter (MMPM), bed id from the provider location&lt;br&gt;_open: SdcConsumer.start_all → ConsumerMdib.init_mdib (GetMdib + Subscribe) → Translator.bind → observableproperties.bind(on_metrics, on_waves)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#16A34A;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="1260" y="205" width="520" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="bSess" value="_Session (one per subscribed bed)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;dashed=1;verticalAlign=top;align=left;spacingLeft=8;spacingTop=2;fontStyle=3;fontSize=11;arcSize=2;" vertex="1" parent="1">
+          <mxGeometry x="1260" y="365" width="520" height="330" as="geometry" />
+        </mxCell>
+        <mxCell id="bCons" value="&lt;b&gt;SdcConsumer + ConsumerMdib&lt;/b&gt; (sdc11073)&lt;br&gt;receives reports, updates the local MDIB copy, fires observable callbacks" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#16A34A;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="395" width="230" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="bMap" value="&lt;b&gt;mapping.py · CODE_MAP&lt;/b&gt;&lt;br&gt;(coding system, code) → Target(group, metric, device_type)&lt;br&gt;groups: DEVICE, RPPG, AI_ECG, VIDEO" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#16A34A;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="1530" y="395" width="230" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="bTr" value="&lt;b&gt;translator.py · Translator&lt;/b&gt;&lt;br&gt;bind(): handle → Target, fs = 1 / SamplePeriod, camera URL&lt;br&gt;on_metrics(): DEVICE → Vital (only when enabled) · RPPG averages → Vital · AI_ECG label / source / latency · VIDEO URL&lt;br&gt;on_waves(): DEVICE → _buffer_device_wave (re-chunk to about 1 s) → Vital · RPPG wave → Vital(rppg-001) · AI_ECG strip&lt;br&gt;_pair_ai_ecg(): strip + label with the same timestamp → _ai_snapshot&lt;br&gt;_send(): Vital(device_id bed-NN-ecg / -spo2 / ..., metadata bed_id, primary, device_type)&lt;br&gt;rPPG and AI-ECG are mapped on the primary bed only" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#16A34A;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="505" width="480" height="175" as="geometry" />
+        </mxCell>
+        <mxCell id="bFwd" value="&lt;b&gt;forwarder.py · AggregatorStream&lt;/b&gt;&lt;br&gt;queue (max 2000, drops when full) → one long-lived gRPC StreamVitals → aggregator :50051, reconnects every 2 s" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#16A34A;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="1260" y="710" width="520" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== Aggregator ===================== -->
+        <mxCell id="cA" value="patient-monitoring-aggregator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFBEB;strokeColor=#D97706;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontStyle=1;fontSize=13;arcSize=1;" vertex="1" parent="1">
+          <mxGeometry x="1830" y="50" width="420" height="570" as="geometry" />
+        </mxCell>
+        <mxCell id="aApi" value="&lt;b&gt;server.py · FastAPI :8001&lt;/b&gt;&lt;br&gt;POST /start?target=... → sdc-bridge /start, rPPG :8084, pose :8083, starts ai_ecg_polling_loop&lt;br&gt;POST /stop (same targets)&lt;br&gt;GET /beds → sdc-bridge :8092/beds&lt;br&gt;GET / POST / DELETE /devices → sdc-gateway :8093/devices&lt;br&gt;GET /events (SSE)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D97706;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="1850" y="90" width="380" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="aVit" value="&lt;b&gt;VitalService.StreamVitals&lt;/b&gt; (gRPC :50051)&lt;br&gt;_detect_workload_type(device_id): rppg-* → rppg, otherwise mdpnp&lt;br&gt;VitalConsumer.consume() → {workload_type, event_type, timestamp, bed_id, primary, payload}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D97706;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="1850" y="255" width="380" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="aPose" value="&lt;b&gt;PoseServicer.PublishPose&lt;/b&gt; (gRPC :50051)&lt;br&gt;→ 3d-pose / pose3d event" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D97706;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="1850" y="380" width="380" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="aEcg" value="&lt;b&gt;ai_ecg_polling_loop&lt;/b&gt; (1 s) · AIECGClient.poll_next()&lt;br&gt;AI_ECG_URL = sdc-bridge :8092/predict_stream_next (SDC mode)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D97706;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="1850" y="450" width="380" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="aSse" value="&lt;b&gt;ws_broadcaster.py · SSEManager&lt;/b&gt;&lt;br&gt;broadcast() → one asyncio queue per SSE client" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D97706;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="1850" y="535" width="380" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== UI ===================== -->
+        <mxCell id="cU" value="ui (React, :3000)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAF5FF;strokeColor=#9333EA;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontStyle=1;fontSize=13;arcSize=2;" vertex="1" parent="1">
+          <mxGeometry x="1830" y="640" width="420" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="uSse" value="&lt;b&gt;sseMiddleware.ts&lt;/b&gt; · EventSource /events&lt;br&gt;mdpnp + bed_id → bedsSlice.bedVital (per-bed numerics and strips)&lt;br&gt;rppg / ai-ecg / 3d-pose → servicesSlice (workload cards)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9333EA;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="1850" y="680" width="380" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="uCs" value="&lt;b&gt;CentralStation.tsx / BedTile.tsx&lt;/b&gt;&lt;br&gt;poll GET /beds every 3 s (1 s while an add / remove is pending) → setBeds&lt;br&gt;BedTile: numerics, ECG / pleth / CO2 strips, camera from video_url" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9333EA;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="1850" y="775" width="380" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="uDp" value="&lt;b&gt;DevicesPanel.tsx / WorkloadCard.tsx&lt;/b&gt;&lt;br&gt;Add monitor / multimodal, Remove → api.addDevice / removeDevice (disabled until Start)&lt;br&gt;Start / Stop → POST /start, /stop&lt;br&gt;WorkloadCard: rPPG, AI-ECG strip, 3D pose, MJPEG :8085" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9333EA;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fontSize=10;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="1850" y="875" width="380" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== Legend and steps ===================== -->
+        <mxCell id="legend" value="&lt;b&gt;Legend&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#1D4ED8&quot;&gt;━━ data (values, waves, SDC reports, Vital)&lt;/font&gt;&lt;br&gt;&lt;font color=&quot;#EA580C&quot;&gt;- - - control (REST: start / stop / add / remove)&lt;/font&gt;&lt;br&gt;&lt;font color=&quot;#15803D&quot;&gt;- - - discovery (Hello / Bye / Probe, GetMdib + Subscribe)&lt;/font&gt;&lt;br&gt;&lt;font color=&quot;#7E22CE&quot;&gt;- - - video (MJPEG)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9CA3AF;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fontSize=11;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="40" y="540" width="320" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="steps" value="&lt;b&gt;Main flows (circled numbers on the arrows)&lt;/b&gt;&lt;br&gt;① Startup: gateway adds bed-01 (+ extras); each SdcProvider sends Hello&lt;br&gt;② Bridge _on_hello → _open: GetMdib + Subscribe for each bed&lt;br&gt;③ Simulator → MdibWriter → ProviderMdib → reports every 1 s / 200 ms&lt;br&gt;④ Translator maps codes → Vital → AggregatorStream → gRPC :50051&lt;br&gt;⑤ Aggregator → SSE /events → UI bed tiles&lt;br&gt;⑥ rPPG → gateway :50061 → bed-01 vmd.rppg → SDC → bridge → Vital(rppg-001)&lt;br&gt;⑦ Gateway polls AI-ECG → bed-01 vmd.aiecg → SDC → bridge snapshot → aggregator polls :8092/predict_stream_next&lt;br&gt;⑧ Add / remove: UI → aggregator → gateway :8093 → Hello / Bye → bridge subscribes / drops" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9CA3AF;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fontSize=11;arcSize=3;" vertex="1" parent="1">
+          <mxGeometry x="40" y="665" width="320" height="300" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== Edges: gateway internal ===================== -->
+        <mxCell id="e1" value="① add bed-01 + extras" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#EA580C;strokeWidth=1.5;dashed=1;fontSize=10;fontColor=#9A3412;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.24;entryY=0;" edge="1" parent="1" source="gMain" target="gMgr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="⑧ add / remove" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#EA580C;strokeWidth=1.5;dashed=1;fontSize=10;fontColor=#9A3412;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.76;entryY=0;" edge="1" parent="1" source="gApi" target="gMgr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="creates per bed" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#EA580C;strokeWidth=1.5;dashed=1;fontSize=10;fontColor=#9A3412;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="gMgr" target="gBed">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="build" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=2;fontSize=10;fontColor=#1E3A8A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="gModel" target="gMdib">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="③ values" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=2;fontSize=10;fontColor=#1E3A8A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.1;entryX=0;entryY=0.23;" edge="1" parent="1" source="gSim" target="gWriter">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=2;fontSize=10;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="gWriter" target="gMdib">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=2;fontSize=10;exitX=1;exitY=0.5;entryX=1;entryY=0.3;" edge="1" parent="1" source="gMdib" target="gProv">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="990" y="407" />
+              <mxPoint x="990" y="592" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e8" value="⑥" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=2;fontSize=10;fontColor=#1E3A8A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.75;" edge="1" parent="1" source="gRppg" target="gWriter">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="710" y="727" />
+              <mxPoint x="710" y="537" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e9" value="⑦" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=2;fontSize=10;fontColor=#1E3A8A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="gEcg" target="gWriter">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1012" y="727" />
+              <mxPoint x="1012" y="520" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ===================== Edges: workloads to gateway ===================== -->
+        <mxCell id="e10" value="⑥ gRPC Vital :50061" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=2;fontSize=10;fontColor=#1E3A8A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="wR" target="gRppg">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="390" y="150" />
+              <mxPoint x="390" y="727" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e11" value="⑦ GET :8000/predict_stream_next (1 s)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=1.5;dashed=1;fontSize=10;fontColor=#1E3A8A;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=1;entryY=0.5;" edge="1" parent="1" source="gEcg" target="wE">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="860" y="870" />
+              <mxPoint x="372" y="870" />
+              <mxPoint x="372" y="285" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ===================== Edges: SDC network ===================== -->
+        <mxCell id="e12" value="③ reports" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=2;fontSize=10;fontColor=#1E3A8A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.8;entryX=0;entryY=0.699;" edge="1" parent="1" source="gProv" target="nNet">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" value="① Hello / Bye" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#15803D;strokeWidth=1.5;dashed=1;dashPattern=8 4;fontSize=10;fontColor=#14532D;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.94;" edge="1" parent="1" source="gWsd" target="nNet">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" value="② Hello / Bye, Probe" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#15803D;strokeWidth=1.5;dashed=1;dashPattern=8 4;fontSize=10;fontColor=#14532D;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.2735;entryX=0;entryY=0.5;" edge="1" parent="1" source="nNet" target="bFleet">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16" value="③ reports" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=2;fontSize=10;fontColor=#1E3A8A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.472;entryX=0;entryY=0.5;" edge="1" parent="1" source="nNet" target="bCons">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== Edges: bridge internal ===================== -->
+        <mxCell id="e15b" value="start()" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#EA580C;strokeWidth=1.5;dashed=1;fontSize=10;fontColor=#9A3412;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.24;entryY=0;" edge="1" parent="1" source="bMain" target="bFleet">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" value="② GetMdib + Subscribe" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#15803D;strokeWidth=1.5;dashed=1;dashPattern=8 4;fontSize=10;fontColor=#14532D;labelBackgroundColor=#FFFFFF;exitX=0.26;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="bFleet" target="bCons">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17" value="on_metrics / on_waves" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=2;fontSize=10;fontColor=#1E3A8A;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.24;entryY=0;" edge="1" parent="1" source="bCons" target="bTr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e18" value="lookup()" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=2;fontSize=10;fontColor=#1E3A8A;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.76;entryY=0;" edge="1" parent="1" source="bMap" target="bTr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e19" value="④ Vital" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=2;fontSize=10;fontColor=#1E3A8A;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="bTr" target="bFwd">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e21" value="⑦ _ai_snapshot" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=2;fontSize=10;fontColor=#1E3A8A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="bTr" target="bApi">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1792" y="592" />
+              <mxPoint x="1792" y="140" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ===================== Edges: bridge to aggregator ===================== -->
+        <mxCell id="e20" value="④ gRPC StreamVitals :50051" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=2;fontSize=10;fontColor=#1E3A8A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="bFwd" target="aVit">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1815" y="745" />
+              <mxPoint x="1815" y="310" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e22" value="⑦ GET :8092/predict_stream_next" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=1.5;dashed=1;fontSize=10;fontColor=#1E3A8A;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;entryX=0.5;entryY=0;" edge="1" parent="1" source="aEcg" target="bApi">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1838" y="485" />
+              <mxPoint x="1838" y="70" />
+              <mxPoint x="1655" y="70" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c3" value="⑧ /start /stop /beds" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#EA580C;strokeWidth=1.5;dashed=1;fontSize=10;fontColor=#9A3412;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.2;entryX=1;entryY=0.3;" edge="1" parent="1" source="aApi" target="bApi">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== Edges: aggregator internal ===================== -->
+        <mxCell id="e23" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=2;fontSize=10;exitX=1;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="aVit" target="aSse">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2245" y="310" />
+              <mxPoint x="2245" y="567" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e24" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=2;fontSize=10;exitX=1;exitY=0.75;entryX=1;entryY=0.5;" edge="1" parent="1" source="aPose" target="aSse">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2245" y="421" />
+              <mxPoint x="2245" y="567" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e25" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=2;fontSize=10;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="aEcg" target="aSse">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== Edges: pose, SSE, video ===================== -->
+        <mxCell id="e26" value="gRPC PublishPose :50051" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=2;fontSize=10;fontColor=#1E3A8A;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.357;entryX=1;entryY=0.25;" edge="1" parent="1" source="wP" target="aPose">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="28" y="410" />
+              <mxPoint x="28" y="995" />
+              <mxPoint x="2265" y="995" />
+              <mxPoint x="2265" y="394" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e27" value="⑤ SSE /events" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=2;fontSize=10;fontColor=#1E3A8A;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="aSse" target="uSse">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e28" value="MJPEG :8085/video_feed (pose card and multimodal bed camera)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#7E22CE;strokeWidth=1.5;dashed=1;fontSize=10;fontColor=#581C87;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.786;entryX=0.5;entryY=1;" edge="1" parent="1" source="wP" target="uDp">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="12" y="470" />
+              <mxPoint x="12" y="1015" />
+              <mxPoint x="2040" y="1015" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ===================== Edges: control from UI / aggregator ===================== -->
+        <mxCell id="c1" value="⑧ POST / DELETE /devices, POST /start /stop" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#EA580C;strokeWidth=1.5;dashed=1;fontSize=10;fontColor=#9A3412;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="uDp" target="aApi">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2290" y="920" />
+              <mxPoint x="2290" y="165" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c2" value="GET /beds" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#EA580C;strokeWidth=1.5;dashed=1;fontSize=10;fontColor=#9A3412;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=1;entryY=0.3;" edge="1" parent="1" source="uCs" target="aApi">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2277" y="817" />
+              <mxPoint x="2277" y="135" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c4" value="⑧ proxy /devices → :8093" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#EA580C;strokeWidth=1.5;dashed=1;fontSize=10;fontColor=#9A3412;labelBackgroundColor=#FFFFFF;exitX=0.658;exitY=0;entryX=0.5;entryY=0;" edge="1" parent="1" source="aApi" target="gApi">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2100" y="38" />
+              <mxPoint x="860" y="38" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c5" value="start / stop: rPPG :8084, pose :8083" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#EA580C;strokeWidth=1.5;dashed=1;fontSize=10;fontColor=#9A3412;labelBackgroundColor=#FFFFFF;exitX=0.816;exitY=0;entryX=0.5;entryY=0;" edge="1" parent="1" source="aApi" target="wR">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2160" y="22" />
+              <mxPoint x="190" y="22" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram id="lld-sequences" name="2 - Runtime sequences">
+    <mxGraphModel dx="1700" dy="1500" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1700" pageHeight="1500" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="s-title" value="MMPM SDC device source - runtime sequences" style="text;html=1;fontSize=20;fontStyle=1;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="0" y="-50" width="900" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Lifelines -->
+        <mxCell id="L1" value="&lt;b&gt;UI&lt;/b&gt;&lt;br&gt;(browser :3000)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;size=60;fillColor=#FAF5FF;strokeColor=#9333EA;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="0" y="0" width="200" height="1450" as="geometry" />
+        </mxCell>
+        <mxCell id="L2" value="&lt;b&gt;Aggregator&lt;/b&gt;&lt;br&gt;FastAPI :8001 / gRPC :50051" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;size=60;fillColor=#FFFBEB;strokeColor=#D97706;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="240" y="0" width="200" height="1450" as="geometry" />
+        </mxCell>
+        <mxCell id="L3" value="&lt;b&gt;sdc-gateway&lt;/b&gt;&lt;br&gt;api.py + DeviceManager" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;size=60;fillColor=#EFF6FF;strokeColor=#2563EB;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="480" y="0" width="200" height="1450" as="geometry" />
+        </mxCell>
+        <mxCell id="L4" value="&lt;b&gt;Bed bed-NN&lt;/b&gt;&lt;br&gt;SdcProvider + DeviceSimulator + MdibWriter" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;size=60;fillColor=#DBEAFE;strokeColor=#2563EB;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="720" y="0" width="200" height="1450" as="geometry" />
+        </mxCell>
+        <mxCell id="L5" value="&lt;b&gt;sdc-bridge&lt;/b&gt;&lt;br&gt;SdcFleet + api.py :8092" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;size=60;fillColor=#F0FDF4;strokeColor=#16A34A;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="960" y="0" width="200" height="1450" as="geometry" />
+        </mxCell>
+        <mxCell id="L6" value="&lt;b&gt;sdc-bridge&lt;/b&gt;&lt;br&gt;Translator + AggregatorStream" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;size=60;fillColor=#DCFCE7;strokeColor=#16A34A;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="0" width="200" height="1450" as="geometry" />
+        </mxCell>
+        <mxCell id="L7" value="&lt;b&gt;AI workloads&lt;/b&gt;&lt;br&gt;rPPG :8084 · AI-ECG :8000 · pose :8083" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;size=60;fillColor=#FFF1F2;strokeColor=#E11D48;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1440" y="0" width="200" height="1450" as="geometry" />
+        </mxCell>
+
+        <!-- Section bands -->
+        <mxCell id="S1" value="A. Start streaming" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F3F4F6;strokeColor=#9CA3AF;opacity=85;align=left;spacingLeft=8;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="-10" y="80" width="1660" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="S2" value="B. Add a bed (buttons are enabled after Start)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F3F4F6;strokeColor=#9CA3AF;opacity=85;align=left;spacingLeft=8;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="-10" y="220" width="1660" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="S3" value="C. Bedside vitals (every bed)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F3F4F6;strokeColor=#9CA3AF;opacity=85;align=left;spacingLeft=8;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="-10" y="615" width="1660" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="S4" value="D. AI data (bed-01 only)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F3F4F6;strokeColor=#9CA3AF;opacity=85;align=left;spacingLeft=8;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="-10" y="835" width="1660" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="S5" value="E. Remove a bed" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F3F4F6;strokeColor=#9CA3AF;opacity=85;align=left;spacingLeft=8;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="-10" y="1120" width="1660" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="S6" value="&lt;b&gt;Fallback:&lt;/b&gt; if a Hello or Bye is missed, SdcFleet._scan() probes every 5 s; _prune_missing() and _prune_disconnected() remove beds that are gone." style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FEF9C3;strokeColor=#CA8A04;opacity=90;align=left;spacingLeft=8;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="-10" y="1395" width="1660" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="nSim" value="DeviceSimulator: numerics every 1 s, waves every 200 ms → MdibWriter transactions" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#FFFFFF;strokeColor=#2563EB;fontSize=10;align=left;spacingLeft=4;" vertex="1" parent="1">
+          <mxGeometry x="830" y="650" width="215" height="44" as="geometry" />
+        </mxCell>
+
+        <!-- A. Start -->
+        <mxCell id="m1" value="1. POST /start?target=all" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#EA580C;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="100" y="135" as="sourcePoint" /><mxPoint x="340" y="135" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m2" value="2. POST :8092/start → enabled.set()" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#EA580C;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="340" y="165" as="sourcePoint" /><mxPoint x="1060" y="165" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m3" value="3. POST :8084/start (rPPG), :8083/start (pose); start ai_ecg_polling_loop" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#EA580C;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="340" y="195" as="sourcePoint" /><mxPoint x="1540" y="195" as="targetPoint" /></mxGeometry>
+        </mxCell>
+
+        <!-- B. Add a bed -->
+        <mxCell id="m4" value="4. POST /devices {type}" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#EA580C;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="100" y="270" as="sourcePoint" /><mxPoint x="340" y="270" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m5" value="5. POST :8093/devices" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#EA580C;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="340" y="298" as="sourcePoint" /><mxPoint x="580" y="298" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m6" value="6. build_mdib, start_all, set_location, DeviceSimulator.start" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#EA580C;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="580" y="326" as="sourcePoint" /><mxPoint x="820" y="326" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m7" value="7. WS-Discovery Hello (multicast)" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#15803D;dashed=1;dashPattern=8 4;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="820" y="354" as="sourcePoint" /><mxPoint x="1060" y="354" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m8" value="201 {bed_id}" style="html=1;verticalAlign=bottom;endArrow=open;endFill=0;dashed=1;fontSize=10;strokeColor=#6B7280;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="580" y="382" as="sourcePoint" /><mxPoint x="340" y="382" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m9" value="201 → placeholder tile, poll every 1 s" style="html=1;verticalAlign=bottom;endArrow=open;endFill=0;dashed=1;fontSize=10;strokeColor=#6B7280;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="340" y="408" as="sourcePoint" /><mxPoint x="100" y="408" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m10" value="8. _on_hello → _consider → _open: GetMdib + Subscribe" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#15803D;dashed=1;dashPattern=8 4;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="1060" y="440" as="sourcePoint" /><mxPoint x="820" y="440" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m11" value="MDIB + subscription" style="html=1;verticalAlign=bottom;endArrow=open;endFill=0;dashed=1;fontSize=10;strokeColor=#6B7280;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="820" y="468" as="sourcePoint" /><mxPoint x="1060" y="468" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m12" value="9. Translator.bind(mdib), observableproperties.bind" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#16A34A;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="1060" y="498" as="sourcePoint" /><mxPoint x="1300" y="498" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m13" value="10. GET /beds" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#EA580C;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="100" y="530" as="sourcePoint" /><mxPoint x="340" y="530" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m14" value="GET :8092/beds" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#EA580C;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="340" y="556" as="sourcePoint" /><mxPoint x="1060" y="556" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m15" value="bed-NN listed → tile shown" style="html=1;verticalAlign=bottom;endArrow=open;endFill=0;dashed=1;fontSize=10;strokeColor=#6B7280;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="1060" y="584" as="sourcePoint" /><mxPoint x="100" y="584" as="targetPoint" /></mxGeometry>
+        </mxCell>
+
+        <!-- C. Bedside vitals -->
+        <mxCell id="m16" value="11. EpisodicMetricReport (1 s) → on_metrics()" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#1D4ED8;strokeWidth=2;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="820" y="720" as="sourcePoint" /><mxPoint x="1300" y="720" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m17" value="12. WaveformStream (200 ms) → on_waves() → buffer to about 1 s" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#1D4ED8;strokeWidth=2;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="820" y="750" as="sourcePoint" /><mxPoint x="1300" y="750" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m18" value="13. gRPC StreamVitals: Vital(bed-NN-*, bed_id, primary), only when enabled" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#1D4ED8;strokeWidth=2;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="1300" y="780" as="sourcePoint" /><mxPoint x="340" y="780" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m19" value="14. SSE /events (mdpnp + bed_id) → BedTile" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#1D4ED8;strokeWidth=2;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="340" y="810" as="sourcePoint" /><mxPoint x="100" y="810" as="targetPoint" /></mxGeometry>
+        </mxCell>
+
+        <!-- D. AI data -->
+        <mxCell id="m20" value="15. rPPG: gRPC Vital → :50061 RppgIngest → vmd.rppg" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#1D4ED8;strokeWidth=2;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="1540" y="880" as="sourcePoint" /><mxPoint x="820" y="880" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m21" value="16. AiEcgPoller: GET :8000/predict_stream_next (1 s)" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#1D4ED8;dashed=1;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="820" y="908" as="sourcePoint" /><mxPoint x="1540" y="908" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m22" value="strip + label + inference_ms → vmd.aiecg" style="html=1;verticalAlign=bottom;endArrow=open;endFill=0;dashed=1;fontSize=10;strokeColor=#6B7280;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="1540" y="936" as="sourcePoint" /><mxPoint x="820" y="936" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m23" value="17. SDC reports for vmd.rppg and vmd.aiecg" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#1D4ED8;strokeWidth=2;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="820" y="966" as="sourcePoint" /><mxPoint x="1300" y="966" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m24" value="18. rPPG Vital (rppg-001) over StreamVitals" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#1D4ED8;strokeWidth=2;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="1300" y="996" as="sourcePoint" /><mxPoint x="340" y="996" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m25" value="19. ai_ecg_polling_loop: GET :8092/predict_stream_next" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#1D4ED8;dashed=1;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="340" y="1026" as="sourcePoint" /><mxPoint x="1060" y="1026" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m26" value="AI-ECG snapshot (strip paired with label)" style="html=1;verticalAlign=bottom;endArrow=open;endFill=0;dashed=1;fontSize=10;strokeColor=#6B7280;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="1060" y="1054" as="sourcePoint" /><mxPoint x="340" y="1054" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m27" value="20. SSE rppg / ai-ecg events → workload cards" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#1D4ED8;strokeWidth=2;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="340" y="1084" as="sourcePoint" /><mxPoint x="100" y="1084" as="targetPoint" /></mxGeometry>
+        </mxCell>
+
+        <!-- E. Remove a bed -->
+        <mxCell id="m28" value="21. DELETE /devices/bed-NN" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#EA580C;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="100" y="1170" as="sourcePoint" /><mxPoint x="340" y="1170" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m29" value="22. DELETE :8093/devices/bed-NN (409 for bed-01)" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#EA580C;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="340" y="1198" as="sourcePoint" /><mxPoint x="580" y="1198" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m30" value="23. sim.stop(), provider.stop_all()" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#EA580C;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="580" y="1226" as="sourcePoint" /><mxPoint x="820" y="1226" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m31" value="24. WS-Discovery Bye" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#15803D;dashed=1;dashPattern=8 4;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="820" y="1254" as="sourcePoint" /><mxPoint x="1060" y="1254" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m32" value="25. _drop → unbind callbacks, unsubscribe" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#16A34A;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="1060" y="1282" as="sourcePoint" /><mxPoint x="1300" y="1282" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m33" value="26. GET /beds" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#EA580C;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="100" y="1312" as="sourcePoint" /><mxPoint x="340" y="1312" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m34" value="GET :8092/beds" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;strokeColor=#EA580C;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="340" y="1338" as="sourcePoint" /><mxPoint x="1060" y="1338" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="m35" value="bed-NN gone → tile removed" style="html=1;verticalAlign=bottom;endArrow=open;endFill=0;dashed=1;fontSize=10;strokeColor=#6B7280;labelBackgroundColor=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="1060" y="1366" as="sourcePoint" /><mxPoint x="100" y="1366" as="targetPoint" /></mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

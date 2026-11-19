@@ -23,6 +23,8 @@ from .writer import MdibWriter
 log = logging.getLogger(__name__)
 
 _MODEL_NAMES = {m.MONITOR: "MMPM Patient Monitor", m.MULTIMODAL: "MMPM Multimodal Monitor"}
+# A patient room is equipped with a multimodal monitor.
+ROOM = "room"
 
 
 class UnknownDevice(KeyError):
@@ -74,15 +76,17 @@ class DeviceManager:
 
     def _next_bed_id(self) -> str:
         n = 1
-        while f"bed-{n:02d}" in self._beds:
+        while f"room-{n:02d}" in self._beds:
             n += 1
-        return f"bed-{n:02d}"
+        return f"room-{n:02d}"
 
     def _stable_epr(self, bed_id: str) -> str:
         # Stable across restarts so consumers can recognise a bed they have seen before.
         return f"urn:uuid:{uuid.uuid5(uuid.NAMESPACE_URL, f'mmpm-sdc/{self._cfg.facility}/{bed_id}')}"
 
     def add(self, kind: str, ai: bool = False, primary: bool = False, epr: str | None = None) -> Bed:
+        if kind == ROOM:
+            kind = m.MULTIMODAL
         if kind not in m.DEVICE_KINDS:
             raise ValueError(f"unknown device type {kind!r}")
         with self._lock:
@@ -111,7 +115,7 @@ class DeviceManager:
                 if video_url:
                     writer.set_metrics({m.H_VIDEO_URL: video_url})
                 provider.set_location(SdcLocation(fac=self._cfg.facility, poc=self._cfg.point_of_care,
-                                                  bed=bed_id))
+                                                  rm=bed_id))
                 sim = DeviceSimulator(writer, wave_chunk_s=self._cfg.wave_chunk_s) if self._cfg.sim_enabled else None
                 if sim:
                     sim.start()
@@ -129,7 +133,7 @@ class DeviceManager:
             if bed is None:
                 raise UnknownDevice(bed_id)
             if bed.primary:
-                raise DeviceConflict(f"{bed_id} is the primary bed and cannot be removed")
+                raise DeviceConflict(f"{bed_id} is the primary room and cannot be removed")
             del self._beds[bed_id]
         self._stop_bed(bed)
         log.info("removed %s (%s)", bed_id, bed.epr)

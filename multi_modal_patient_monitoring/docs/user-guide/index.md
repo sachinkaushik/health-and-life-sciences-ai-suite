@@ -49,6 +49,8 @@ orchestrated, monitored, and visualized in a clinical-style scenario.
   data/control flows.
 - [SDC Device Source](./sdc-device-source.md) – Using IEEE 11073 SDC instead of OpenICE for
   bedside-device data.
+- [SDC in MMPM: Simulator and Central Station](./sdc-simulator-overview.md) – Short overview of
+  the SDC simulator, how it produces data, and a showcase walkthrough.
 - [Release Notes](./release-notes.md) – Version history and known issues.
 
 
@@ -60,6 +62,7 @@ orchestrated, monitored, and visualized in a clinical-style scenario.
 Get Started <get-started.md>
 How It Works <how-it-works.md>
 SDC Device Source <sdc-device-source.md>
+SDC Simulator Overview <sdc-simulator-overview.md>
 Release Notes <release-notes.md>
 
 :::
