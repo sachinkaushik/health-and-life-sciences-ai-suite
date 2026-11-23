@@ -3,19 +3,59 @@
 This guide takes you from a fresh clone to a running segmentation pop-up on a
 Windows machine with an Intel® Core™ Ultra (Intel® Arc™ iGPU).
 
+> **Important:** Run every command in this guide in **Windows PowerShell 5.1**
+> or **PowerShell 7** — not in Command Prompt (CMD). The setup and run scripts
+> are PowerShell (`.ps1`) files; CMD does not execute them and opens them as
+> text files instead.
+>
+> A regular (non-Administrator) PowerShell window is enough for cloning, setup,
+> model preparation, the segmentation pop-up, and the web dashboard. The only
+> exception is the **power** graph in the web dashboard: SoCWatch needs
+> Administrator rights, so to see it, launch `.\run_webapp.ps1` from a
+> PowerShell window opened with **Run as administrator**. Without it, all other
+> graphs still work.
+
 ## Prerequisites
 
 - Windows 11 with an Intel® Core™ Ultra processor (Intel® Arc™ iGPU).
 - Up-to-date Intel graphics drivers. The iGPU must appear in Task Manager and be
   visible to the OpenVINO™ Toolkit (OpenVINO™).
 - Python 3.11 (64-bit) on `PATH`.
+- [Git for Windows](https://git-scm.com/download/win) on `PATH` — used to clone
+  the repository.
 - [Node.js](https://nodejs.org) 18+ on `PATH` — used once to build the web
   dashboard UI; the first `run_webapp.ps1` builds it automatically.
-- PowerShell. If scripts are blocked, allow them for the current session only:
+- Windows PowerShell 5.1 (included with Windows 11) or PowerShell 7. To open
+  it, press **Start**, type `PowerShell`, and select **Windows PowerShell**. If
+  running a script fails with a `PSSecurityException` / "running scripts is
+  disabled on this system" error, allow scripts for the current session only
+  (no Administrator rights needed):
 
   ```powershell
   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
   ```
+
+## Clone the repository
+
+Clone the suite. The `--sparse` option downloads only
+the Ultrasound Ovarian Segmentation application, not the other applications in
+the suite. To learn more about partial cloning, see the
+[Repository Cloning guide](https://docs.openedgeplatform.intel.com/2026.3/OEP-articles/contribution-guide.html#repository-cloning-partial-cloning).
+
+In PowerShell, go to the folder where you want the code and run:
+
+```powershell
+git clone --filter=blob:none --sparse --branch main https://github.com/open-edge-platform/health-and-life-sciences-ai-suite.git
+cd health-and-life-sciences-ai-suite
+git sparse-checkout set ultrasound-ovarian-segmentation
+cd ultrasound-ovarian-segmentation
+```
+
+`main` is the latest development version. To use the v2026.3.0 release,
+replace `main` with the `release-2026.3.0` branch or the `v2026.3.0` tag.
+
+All commands in the following steps are run from this
+`ultrasound-ovarian-segmentation` folder.
 
 ## 1. Install runtime dependencies
 
@@ -118,11 +158,13 @@ and every graph lights up:
    on your first `run_webapp.ps1`, so there is nothing to build by hand; just
    install [Node.js](https://nodejs.org) 18+. (To pre-build instead, run
    `cd webapp\ui; npm install; npm run build`.)
-5. **Hardware-utilization tools** — CPU and memory need nothing extra, but the
-   iGPU / NPU / power graphs use Intel vendor tools (SoCWatch, Level Zero) that
-   are **not** committed (as they total ~139 MB). Stage them once by copying a
-   `monitoring\tools` folder from your existing benchmark install into this
-   clone. Without them the application still runs and shows CPU and memory.
+5. **Hardware-utilization tools** — CPU and memory monitoring need no extra installation. iGPU, NPU, and power graphs use Intel vendor tools (SoCWatch and Level Zero). Obtain these tools in one of the following ways:
+
+   - **Existing benchmark installation:** copy the complete `monitoring\tools` folder from another machine that already has the HLS benchmark tools staged.
+   - **Fresh setup:** obtain SoCWatch and Level Zero through your organization's Intel software/software-license channel or the approved Intel client-GPU installation package; do not download binaries from an untrusted source.
+   - **Source build:** if your environment provides the Level Zero and performance-tools source trees, copy or build their outputs into `monitoring\tools` using the layout described in [Troubleshooting](./troubleshooting.md#web-dashboard-hw-monitoring-disabled).
+
+   The application still runs and reports CPU and memory when these vendor tools are absent. iGPU, NPU, and power graphs remain disabled until the tools are staged and the app is restarted.
 
 ### Launch and run
 
