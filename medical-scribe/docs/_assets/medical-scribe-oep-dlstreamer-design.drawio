@@ -1,0 +1,284 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="ms-oep-dls" name="Medical Scribe - OEP audio-analyzer + DL Streamer">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="&lt;b&gt;Medical Scribe (HLS) – OEP audio-analyzer integration and DL Streamer plan&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Native workers started by the Next.js app (no containers) · Phase 1: audio-analyzer as default STT · Phase 2: optional DL Streamer STT backend · Phase 3: video (future)&lt;/font&gt;" style="text;html=1;align=left;verticalAlign=middle;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry x="20" y="10" width="1360" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Sources -->
+        <mxCell id="src_browser" value="&lt;b&gt;Browser (clinician)&lt;/b&gt;&lt;br&gt;record / upload (WebM/Opus)&lt;br&gt;live microphone" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="20" y="105" width="220" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="src_mic" value="&lt;b&gt;Exam-room microphone&lt;/b&gt;&lt;br&gt;ALSA hw:X,Y&lt;br&gt;(Phase 2)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="20" y="560" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="src_rtsp" value="&lt;b&gt;Room device audio&lt;/b&gt;&lt;br&gt;RTSP / network stream&lt;br&gt;(Phase 2)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="20" y="660" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="src_cam" value="&lt;b&gt;Exam-room camera&lt;/b&gt;&lt;br&gt;(Phase 3, future)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="20" y="960" width="220" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Frontend -->
+        <mxCell id="fe" value="Medical Scribe frontend – Next.js + Payload CMS (:8080)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;verticalAlign=top;align=left;spacingLeft=8;fontStyle=1;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="300" y="70" width="1080" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="fe_sample" value="&lt;b&gt;Medical Scribe sample page&lt;/b&gt;&lt;br&gt;record · upload · live mode&lt;br&gt;samples/medical-scribe/demo.tsx" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="315" y="105" width="260" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="fe_align" value="&lt;b&gt;4. Align words ↔ speaker turns&lt;/b&gt;&lt;br&gt;doctor matched by voice embedding&lt;br&gt;hooks/use-audio-processing.ts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="590" y="105" width="250" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="fe_settings" value="&lt;b&gt;Runtime Settings&lt;/b&gt;&lt;br&gt;sttBackend: &lt;b&gt;oep&lt;/b&gt; (Phase 1 default) | ovms | meralion | dlstreamer (Phase 2)&lt;br&gt;services/speech-to-text/config.ts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="855" y="105" width="250" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="fe_mgr" value="&lt;b&gt;Service manager&lt;/b&gt;&lt;br&gt;starts native workers:&lt;br&gt;start.sh --port --model --device --precision&lt;br&gt;polls /healthcheck" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="105" width="245" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Speech to Text service -->
+        <mxCell id="stt" value="Speech to Text service (:8023) – one backend per instance (metadata.sttBackend) · same API for all backends" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#333333;verticalAlign=top;align=left;spacingLeft=8;fontStyle=1;arcSize=3;" vertex="1" parent="1">
+          <mxGeometry x="300" y="250" width="760" height="530" as="geometry" />
+        </mxCell>
+        <mxCell id="oep" value="oep worker – Phase 1 default (workers/services/speech-to-text/oep)&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;main.py wrapper: --model/--device/--precision → AUDIO_ANALYZER__MODELS__ASR__* · own .venv · /healthcheck&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=6;fontStyle=1;arcSize=5;" vertex="1" parent="1">
+          <mxGeometry x="320" y="285" width="370" height="205" as="geometry" />
+        </mxCell>
+        <mxCell id="aa" value="&lt;b&gt;OEP audio-analyzer&lt;/b&gt; (unchanged upstream)&lt;br&gt;edge-ai-libraries 2026.2.1 → 2026.3&lt;br&gt;Whisper on OpenVINO GenAI · CPU / GPU / NPU&lt;br&gt;POST /v1/audio/transcriptions (verbose_json, word ts)&lt;br&gt;NDJSON / SSE streaming · WS /v1/realtime" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="335" y="350" width="340" height="125" as="geometry" />
+        </mxCell>
+        <mxCell id="ovms" value="&lt;b&gt;ovms worker&lt;/b&gt;&lt;br&gt;Whisper / Qwen3-ASR on OVMS&lt;br&gt;WS /v1/audio/stream&lt;br&gt;(alternative)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="705" y="285" width="165" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="meralion" value="&lt;b&gt;meralion worker&lt;/b&gt;&lt;br&gt;MERaLiON-3-3B-ASR&lt;br&gt;(SEA languages, alternative)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="880" y="285" width="165" height="95" as="geometry" />
+        </mxCell>
+
+        <mxCell id="dls" value="dlstreamer worker – Phase 2, optional (workers/services/speech-to-text/dlstreamer)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff8ef;strokeColor=#d79b00;dashed=1;verticalAlign=top;align=left;spacingLeft=6;fontStyle=1;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="320" y="515" width="725" height="250" as="geometry" />
+        </mxCell>
+        <mxCell id="dls_api" value="&lt;b&gt;FastAPI adapter&lt;/b&gt;&lt;br&gt;POST /v1/audio/transcriptions&lt;br&gt;(returns verbose_json)&lt;br&gt;POST /v1/sources (room streams)&lt;br&gt;/healthcheck" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="335" y="555" width="210" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="dls_pipe" value="DL Streamer pipeline (GStreamer)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#d79b00;dashed=1;verticalAlign=top;align=left;spacingLeft=6;fontStyle=1;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="565" y="550" width="465" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="el_src" value="filesrc | appsrc |&lt;br&gt;alsasrc | urisourcebin" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="580" y="585" width="130" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="el_dec" value="decodebin3" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="730" y="585" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="el_conv" value="audioresample ! audioconvert&lt;br&gt;S16LE · mono · 16 kHz" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="850" y="585" width="165" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="el_asr" value="&lt;b&gt;gvaaudiotranscribe&lt;/b&gt;&lt;br&gt;Whisper (OpenVINO) · device=GPU" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;strokeWidth=2;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="850" y="670" width="165" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="el_meta" value="gvametaconvert&lt;br&gt;format=json" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="730" y="670" width="100" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="el_sink" value="appsink" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="580" y="670" width="130" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- Right column services -->
+        <mxCell id="diar" value="&lt;b&gt;Diarization worker (:8026)&lt;/b&gt;&lt;br&gt;pyannote speaker-diarization-community-1&lt;br&gt;POST /v1/diarize · POST /v1/embedding&lt;br&gt;doctor voice enrolment (kept separate)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1110" y="270" width="270" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="llm" value="&lt;b&gt;Text generation&lt;/b&gt; (workers/engines/multiserve)&lt;br&gt;OVMS or llama.cpp&lt;br&gt;Qwen3-8B-int8-ov on GPU&lt;br&gt;OpenAI-compatible chat → SOAP note" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1110" y="410" width="270" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="db" value="&lt;b&gt;medical-scribe-database (:8027)&lt;/b&gt;&lt;br&gt;SQLite · /v1/sessions · /v1/doctor-profiles" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1110" y="550" width="270" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Storage / upstream -->
+        <mxCell id="models" value="&lt;b&gt;Shared model store (repo models/)&lt;/b&gt;&lt;br&gt;models/stt/openvino/&amp;lt;whisper&amp;gt;-&amp;lt;precision&amp;gt; · models/huggingface (HF cache)&lt;br&gt;models/diarization · text-generation models" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="300" y="820" width="470" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="upjson" value="&lt;b&gt;workers/upstream.json&lt;/b&gt;&lt;br&gt;edge-ai-libraries tag 2026.2.1&lt;br&gt;audio-analyzer · model-download&lt;br&gt;fetched on start, copied unchanged" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="800" y="820" width="260" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="gh" value="&lt;b&gt;open-edge-platform/edge-ai-libraries&lt;/b&gt;&lt;br&gt;microservices/audio-analyzer&lt;br&gt;microservices/model-download&lt;br&gt;(GitHub, release tags)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="1110" y="820" width="270" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Phase 3 -->
+        <mxCell id="p3" value="&lt;b&gt;Phase 3 (future, when video is in scope)&lt;/b&gt;&lt;br&gt;camera ! decodebin3 ! gvadetect ! gvatrack ! gvagenai (VLM) → context events (e.g. patient on bed, device screen reading) for the SOAP prompt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="300" y="955" width="760" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Legend -->
+        <mxCell id="lg" value="Legend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;verticalAlign=top;align=left;spacingLeft=8;fontStyle=1;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="70" width="250" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="lg1" value="Existing (as exported)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1435" y="100" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lg2" value="Phase 1 – OEP audio-analyzer default" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1435" y="140" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lg3" value="Phase 2 – DL Streamer STT (optional)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;dashed=1;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1435" y="180" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lg4" value="Phase 3 – video (future)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=1;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1435" y="220" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lg5" value="Alternative backend, unchanged" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1435" y="260" width="220" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="notes" value="&lt;b&gt;Flow (batch)&lt;/b&gt;&lt;br&gt;1. Record / upload audio&lt;br&gt;2. STT → verbose_json + word timestamps&lt;br&gt;3. Diarize (+ doctor embedding)&lt;br&gt;4. Align words ↔ speakers (browser)&lt;br&gt;5. LLM → SOAP note&lt;br&gt;6. Save session&lt;br&gt;&lt;br&gt;&lt;b&gt;Live&lt;/b&gt;: oep → WS /v1/realtime; diarization WS in parallel&lt;br&gt;&lt;br&gt;&lt;b&gt;Phase 2 open questions&lt;/b&gt;&lt;br&gt;• word timestamps from gvaaudiotranscribe?&lt;br&gt;• share Whisper IR with Phase 1?&lt;br&gt;• native install on Ubuntu + Windows 11&lt;br&gt;• live mode via appsrc + VAD" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fontSize=11;arcSize=3;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="320" width="250" height="330" as="geometry" />
+        </mxCell>
+
+        <!-- Edges: batch flow -->
+        <mxCell id="e1" value="1. audio" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#6c8ebf;strokeWidth=2;" edge="1" parent="1" source="src_browser" target="fe_sample">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="2. POST /v1/audio/transcriptions&lt;br&gt;verbose_json · word timestamps&lt;br&gt;live: WS /v1/realtime" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#82b366;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=10;" edge="1" parent="1" source="fe_sample" target="aa">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="445" y="230" />
+              <mxPoint x="505" y="230" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e3" value="3. POST /v1/diarize&lt;br&gt;(+ doctor embedding)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#6c8ebf;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=10;exitX=0.75;exitY=1;entryX=0;entryY=0.5;" edge="1" parent="1" source="fe_align" target="diar">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="778" y="235" />
+              <mxPoint x="1085" y="235" />
+              <mxPoint x="1085" y="320" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e4" value="5. SOAP prompt +&lt;br&gt;aligned transcript" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#6c8ebf;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=10;exitX=0.25;exitY=1;entryX=0;entryY=0.5;" edge="1" parent="1" source="fe_align" target="llm">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="653" y="240" />
+              <mxPoint x="1075" y="240" />
+              <mxPoint x="1075" y="460" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e5" value="6. save session" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#6c8ebf;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=10;exitX=1;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="fe_mgr" target="db">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1395" y="150" />
+              <mxPoint x="1395" y="590" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e6" value="start.sh + /healthcheck" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#999999;dashed=1;labelBackgroundColor=#ffffff;fontSize=10;exitX=0.5;exitY=1;entryX=1;entryY=0.1;" edge="1" parent="1" source="fe_settings" target="stt">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="980" y="245" />
+              <mxPoint x="1070" y="245" />
+              <mxPoint x="1070" y="303" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Edges: Phase 2 -->
+        <mxCell id="e7" value="same API&lt;br&gt;(Phase 2)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d79b00;dashed=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=10;exitX=0;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="fe_sample" target="dls_api">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="270" y="150" />
+              <mxPoint x="270" y="610" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d79b00;dashed=1;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="src_mic" target="dls_api">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="290" y="595" />
+              <mxPoint x="290" y="630" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e9" value="POST /v1/sources" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d79b00;dashed=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.75;" edge="1" parent="1" source="src_rtsp" target="dls_api">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="290" y="695" />
+              <mxPoint x="290" y="638" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e10" value="build / run" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d79b00;strokeWidth=1;labelBackgroundColor=#ffffff;fontSize=9;exitX=1;exitY=0.3;entryX=0;entryY=0.5;" edge="1" parent="1" source="dls_api" target="el_src">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d79b00;" edge="1" parent="1" source="el_src" target="el_dec">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d79b00;" edge="1" parent="1" source="el_dec" target="el_conv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d79b00;" edge="1" parent="1" source="el_conv" target="el_asr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d79b00;" edge="1" parent="1" source="el_asr" target="el_meta">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d79b00;" edge="1" parent="1" source="el_meta" target="el_sink">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c6" value="transcript JSON" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d79b00;labelBackgroundColor=#ffffff;fontSize=9;exitX=0;exitY=0.5;entryX=0.5;entryY=1;" edge="1" parent="1" source="el_sink" target="dls_api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Edges: models / upstream -->
+        <mxCell id="m1" value="Whisper OpenVINO export" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#82b366;dashed=1;labelBackgroundColor=#ffffff;fontSize=9;exitX=0.15;exitY=1;entryX=0.15;entryY=0;" edge="1" parent="1" source="oep" target="models">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="376" y="505" />
+              <mxPoint x="306" y="505" />
+              <mxPoint x="306" y="800" />
+              <mxPoint x="371" y="800" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m2" value="reuse Whisper IR (to verify)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d79b00;dashed=1;labelBackgroundColor=#ffffff;fontSize=9;exitX=0.5;exitY=1;entryX=0.75;entryY=0;" edge="1" parent="1" source="el_asr" target="models">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="933" y="795" />
+              <mxPoint x="653" y="795" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="u1" value="fetch pinned tag" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#666666;dashed=1;labelBackgroundColor=#ffffff;fontSize=9;" edge="1" parent="1" source="gh" target="upjson">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="u2" value="copy → oep/thirdparty/audio-analyzer&lt;br&gt;+ own .venv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#82b366;dashed=1;labelBackgroundColor=#ffffff;fontSize=9;exitX=0.5;exitY=0;entryX=1;entryY=0.75;" edge="1" parent="1" source="upjson" target="oep">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="930" y="800" />
+              <mxPoint x="1052" y="800" />
+              <mxPoint x="1052" y="499" />
+              <mxPoint x="700" y="499" />
+              <mxPoint x="700" y="439" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Edges: Phase 3 -->
+        <mxCell id="p3e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673a6;dashed=1;strokeWidth=2;" edge="1" parent="1" source="src_cam" target="p3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p3e2" value="context events" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673a6;dashed=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=10;exitX=1;exitY=0.5;entryX=0.5;entryY=1;" edge="1" parent="1" source="p3" target="llm">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1090" y="990" />
+              <mxPoint x="1090" y="530" />
+              <mxPoint x="1245" y="530" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
