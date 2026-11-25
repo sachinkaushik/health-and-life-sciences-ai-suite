@@ -58,7 +58,7 @@ function Consultations() {
 
   const ready = new Map((status.data?.services ?? []).map((s) => [s.id, s.ready]))
   const canTranscribe = ready.get('speech-to-text') && ready.get('diarization') && ready.get('encounter-store')
-  const canWrite = ready.get('llm') && ready.get('encounter-store')
+  const canWrite = ready.get('text-generation') && ready.get('encounter-store')
   const notReady = (status.data?.services ?? []).filter((s) => !s.ready)
 
   // New encounter

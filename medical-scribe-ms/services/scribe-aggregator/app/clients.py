@@ -113,7 +113,7 @@ async def voice_embedding(audio: bytes, filename: str) -> list[float]:
     return list(resp.json()["embedding"])
 
 
-# ---------------------------------------------------------------------- llm --
+# ---------------------------------------------------------- text-generation --
 async def chat_stream(system: str, user: str) -> AsyncIterator[dict[str, Any]]:
     """OVMS OpenAI chat completions, streamed: yields each chunk; the last carries usage."""
     body = {
@@ -146,7 +146,7 @@ async def chat_stream(system: str, user: str) -> AsyncIterator[dict[str, Any]]:
 HEALTH_CHECKS = {
     "speech-to-text": ("Speech to text", lambda: f"{config.STT_URL}/healthcheck"),
     "diarization": ("Speaker identification", lambda: f"{config.DIARIZATION_URL}/healthcheck"),
-    "llm": ("Clinical note writer", lambda: f"{config.LLM_URL}/v2/health/ready"),
+    "text-generation": ("Clinical note writer", lambda: f"{config.LLM_URL}/v2/health/ready"),
     "encounter-store": ("Encounter store", lambda: f"{config.STORE_URL}/healthz"),
 }
 

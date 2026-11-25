@@ -41,7 +41,7 @@ export default function TodayPage() {
     ? {
         'speech-to-text': `${config.stt.model} · ${config.stt.device}`,
         diarization: `${config.diarization.model} · ${config.diarization.device}`,
-        llm: `${config.llm.model} · ${config.llm.device}`,
+        'text-generation': `${config.text_generation.model} · ${config.text_generation.device}`,
       }
     : {}
 

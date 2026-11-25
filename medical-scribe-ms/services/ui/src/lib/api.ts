@@ -52,7 +52,7 @@ export interface AppStatus {
 export interface AppConfig {
   stt: { model: string; device: string }
   diarization: { model: string; device: string }
-  llm: { model: string; device: string }
+  text_generation: { model: string; device: string }
 }
 
 export class ApiError extends Error {

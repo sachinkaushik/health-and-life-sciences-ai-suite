@@ -12,7 +12,7 @@
 | **encounter-store** (FastAPI + SQLite) | Encounters and doctor profiles. No other service reads its database | — |
 | **speech-to-text** | Transcription: OEP audio-analyzer (`edge-ai-libraries` 2026.2.1) with Whisper on OpenVINO GenAI, wrapped by the `oep` worker (health check, browser formats, model flags) | — |
 | **diarization** | Who spoke when, pyannote `speaker-diarization-community-1`; speaker embeddings for doctor enrolment | — |
-| **llm** | OpenVINO Model Server 2026.4.1 serving `LLM_MODEL` with the OpenAI chat API; model pulled and loaded at start | — |
+| **text-generation** | OpenVINO Model Server 2026.4.1 serving `LLM_MODEL` with the OpenAI chat API; model pulled and loaded at start | — |
 | **metrics-collector** | performance-tools (`intel/retail-benchmark`): CPU, GPU, NPU, memory, power | host `/sys`, `/proc` |
 
 Compared with the Demo Studio sample, the workflow logic (pipeline, alignment, prompt) moved from
@@ -106,7 +106,7 @@ Encounter `status`: `new` → `recording` → `processing` → `transcribed` (or
 | `data/encounter-store/` | `encounters.db`: encounters, transcripts, notes, doctor voice embeddings (clinical data) |
 | `models/stt`, `models/huggingface` | Whisper OpenVINO export and its source |
 | `models/diarization` | pyannote pipeline |
-| `models/llm` | The LLM (OpenVINO IR) |
+| `models/text-generation` | The LLM (OpenVINO IR) |
 | `logs/`, `metrics/` | Service logs, raw metrics-collector output |
 
 ## Design decisions

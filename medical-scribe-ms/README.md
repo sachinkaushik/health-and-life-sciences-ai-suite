@@ -20,7 +20,7 @@ flowchart LR
   GW -->|"/api, /api/live (WS)"| AGG["scribe-aggregator<br/>Medical Scribe API"]
   AGG --> STT["speech-to-text<br/>OEP audio-analyzer · Whisper"]
   AGG --> DIA["diarization<br/>pyannote · voice enrolment"]
-  AGG --> LLM["llm<br/>OpenVINO Model Server"]
+  AGG --> LLM["text-generation<br/>OpenVINO Model Server"]
   AGG --> ES["encounter-store<br/>SQLite"]
   AGG -.->|":9000"| MC["metrics-collector<br/>performance-tools"]
 ```
@@ -33,7 +33,7 @@ flowchart LR
 | encounter-store | `intel/hl-ai-medical-scribe-encounter-store` | Encounters (transcript, note, timings) and doctor profiles (voice embedding) |
 | speech-to-text | `intel/hl-ai-medical-scribe-speech-to-text` | OEP audio-analyzer with Whisper on OpenVINO, batch and live (`/v1/realtime`) |
 | diarization | `intel/hl-ai-medical-scribe-diarization` | pyannote `speaker-diarization-community-1`, doctor voice embeddings |
-| llm | `intel/hl-ai-medical-scribe-llm` | OpenVINO Model Server; the model is set in `.env` and loaded at start |
+| text-generation | `intel/hl-ai-medical-scribe-text-generation` | OpenVINO Model Server writing the SOAP note; the model is set in `.env` (`LLM_MODEL`) and loaded at start |
 | metrics-collector | `intel/retail-benchmark` | performance-tools: CPU, GPU, NPU, memory and power on `:9000` |
 
 How it works in detail: [docs/user-guide/how-it-works.md](docs/user-guide/how-it-works.md).

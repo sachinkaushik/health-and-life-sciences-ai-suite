@@ -9,7 +9,7 @@
 #   encounter-store    encounters and doctor profiles (SQLite)
 #   speech-to-text     OEP audio-analyzer (Whisper, OpenVINO)          GPU / NPU / CPU
 #   diarization        pyannote speaker diarization, voice enrolment    CPU / Intel GPU (xpu)
-#   llm                OpenVINO Model Server, model loaded at start     GPU / NPU / CPU
+#   text-generation    OpenVINO Model Server, model loaded at start     GPU / NPU / CPU
 #   metrics-collector  performance-tools: CPU, GPU, NPU, memory, power  (host network, privileged)
 
 name: medical-scribe-ms
@@ -19,8 +19,8 @@ x-proxy-env: &proxy-env
   https_proxy: ${https_proxy:-}
   HTTP_PROXY: ${http_proxy:-}
   HTTPS_PROXY: ${https_proxy:-}
-  no_proxy: localhost,127.0.0.1,speech-to-text,diarization,llm,encounter-store,scribe-aggregator,ui,gateway
-  NO_PROXY: localhost,127.0.0.1,speech-to-text,diarization,llm,encounter-store,scribe-aggregator,ui,gateway
+  no_proxy: localhost,127.0.0.1,speech-to-text,diarization,text-generation,encounter-store,scribe-aggregator,ui,gateway
+  NO_PROXY: localhost,127.0.0.1,speech-to-text,diarization,text-generation,encounter-store,scribe-aggregator,ui,gateway
 
 x-build-args: &build-args
   BASE_IMAGE: ${REGISTRY:-intel/}hl-ai-medical-scribe-base:${TAG:-latest}
@@ -155,12 +155,12 @@ services:
       retries: 5
       start_period: 10m
 
-  llm:
+  text-generation:
     <<: [*service, *accelerators]
-    image: ${REGISTRY:-intel/}hl-ai-medical-scribe-llm:${TAG:-latest}
+    image: ${REGISTRY:-intel/}hl-ai-medical-scribe-text-generation:${TAG:-latest}
     build:
       context: .
-      dockerfile: services/llm/Dockerfile
+      dockerfile: services/text-generation/Dockerfile
       args: *build-args
     environment:
       <<: *proxy-env

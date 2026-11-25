@@ -55,5 +55,5 @@ import-models: setup ## Reuse models already downloaded by the Demo Studio app (
 		if [ -d "$(FROM)/$$d" ]; then cp -al "$(FROM)/$$d" models/ 2>/dev/null || cp -a "$(FROM)/$$d" models/; echo "imported $$d"; fi; \
 	done
 	@src="$(FROM)/multiserve/text-generation/OV/text_generation"; \
-	if [ -d "$$src" ]; then mkdir -p models/llm && \
-		rsync -a --link-dest="$$(realpath $$src)" --exclude graph.pbtxt --exclude .git "$$src/" models/llm/ && echo "imported llm"; fi
+	if [ -d "$$src" ]; then mkdir -p models/text-generation && \
+		rsync -a --link-dest="$$(realpath $$src)" --exclude graph.pbtxt --exclude .git "$$src/" models/text-generation/ && echo "imported text-generation"; fi

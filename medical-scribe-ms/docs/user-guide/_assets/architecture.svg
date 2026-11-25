@@ -125,8 +125,8 @@
 
   <!-- LLM -->
   <rect x="880" y="392" width="280" height="104" class="box" fill="#fff7e0" stroke="#d6a400"/>
-  <text x="896" y="418" class="t">llm</text>
-  <text x="928" y="418" class="m">:8004</text>
+  <text x="896" y="418" class="t">text-generation</text>
+  <text x="1030" y="418" class="m">:8004</text>
   <rect x="1110" y="404" width="38" height="18" rx="9" fill="#0068b5"/>
   <text x="1129" y="417" class="pill" text-anchor="middle">GPU</text>
   <text x="896" y="438" class="s">OpenVINO Model Server 2026.4.1</text>

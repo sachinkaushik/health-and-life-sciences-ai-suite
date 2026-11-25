@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # Serves LLM_MODEL (a Hugging Face OpenVINO repository) on :8004 with the OpenAI-compatible API
-# (/v3/chat/completions). On first start OVMS pulls it into /opt/medical-scribe/models/llm.
+# (/v3/chat/completions). On first start OVMS pulls it into /opt/medical-scribe/models/text-generation.
 set -eu
 
 : "${LLM_MODEL:=OpenVINO/Qwen3.5-4B-int4-ov}"
@@ -13,7 +13,7 @@ set -eu
 
 exec ovms \
     --source_model "$LLM_MODEL" \
-    --model_repository_path /opt/medical-scribe/models/llm \
+    --model_repository_path /opt/medical-scribe/models/text-generation \
     --model_name "$LLM_MODEL" \
     --task text_generation \
     --target_device "$LLM_DEVICE" \

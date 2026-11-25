@@ -2,7 +2,7 @@
 # Copyright (C) 2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-# Shared runtime of the GPU/NPU services (speech-to-text, diarization, llm). `make build` builds it
+# Shared runtime of the GPU/NPU services (speech-to-text, diarization, text-generation). `make build` builds it
 # first as ${REGISTRY}hl-ai-medical-scribe-base:${TAG}; the services start FROM it.
 
 ARG UBUNTU_VERSION=24.04

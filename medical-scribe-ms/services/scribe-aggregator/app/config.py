@@ -21,7 +21,7 @@ def _float(name: str, default: float) -> float:
 
 STT_URL = _env("STT_URL", "http://speech-to-text:8002")
 DIARIZATION_URL = _env("DIARIZATION_URL", "http://diarization:8003")
-LLM_URL = _env("LLM_URL", "http://llm:8004")
+LLM_URL = _env("LLM_URL", "http://text-generation:8004")
 STORE_URL = _env("STORE_URL", "http://encounter-store:8001")
 METRICS_URL = _env("METRICS_URL", "http://host.docker.internal:9000")
 
