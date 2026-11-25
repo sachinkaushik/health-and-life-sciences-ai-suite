@@ -144,7 +144,7 @@ async def chat_stream(system: str, user: str) -> AsyncIterator[dict[str, Any]]:
 
 # ------------------------------------------------------------------- health --
 HEALTH_CHECKS = {
-    "speech-to-text": ("Speech to text", lambda: f"{config.STT_URL}/healthcheck"),
+    "speech-to-text": ("Speech to text", lambda: f"{config.STT_URL}/health"),
     "diarization": ("Speaker identification", lambda: f"{config.DIARIZATION_URL}/healthcheck"),
     "text-generation": ("Clinical note writer", lambda: f"{config.LLM_URL}/v2/health/ready"),
     "encounter-store": ("Encounter store", lambda: f"{config.STORE_URL}/healthz"),

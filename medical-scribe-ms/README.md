@@ -31,7 +31,7 @@ flowchart LR
 | ui | `intel/hl-ai-medical-scribe-ui` | Today, Consultations and System pages. Calls only `/api` |
 | scribe-aggregator | `intel/hl-ai-medical-scribe-aggregator` | Encounters, doctors, the transcription pipeline, speaker alignment, live sessions, SOAP note streaming, metrics |
 | encounter-store | `intel/hl-ai-medical-scribe-encounter-store` | Encounters (transcript, note, timings) and doctor profiles (voice embedding) |
-| speech-to-text | `intel/hl-ai-medical-scribe-speech-to-text` | OEP audio-analyzer with Whisper on OpenVINO, batch and live (`/v1/realtime`) |
+| speech-to-text | `intel/audio-analyzer` (published OEP image, not built) | Whisper on OpenVINO, batch and live (`/v1/realtime`) |
 | diarization | `intel/hl-ai-medical-scribe-diarization` | pyannote `speaker-diarization-community-1`, doctor voice embeddings |
 | text-generation | `intel/hl-ai-medical-scribe-text-generation` | OpenVINO Model Server writing the SOAP note; the model is set in `configs/model-config.yaml` and loaded at start |
 | metrics-collector | `intel/retail-benchmark` | performance-tools: CPU, GPU, NPU, memory and power on `:9000` |
@@ -104,6 +104,7 @@ The SOAP prompt is `prompts.soap` in the same file. It is read for every note, s
 | `HF_TOKEN` | — | Required (diarization) |
 | `BIND_ADDRESS` / `UI_PORT` | `127.0.0.1` / `8080` | Where the UI is published |
 | `TAG`, `REGISTRY` | `latest`, `intel/` | Image names |
+| `AUDIO_ANALYZER_TAG` | `2026.3.0-rc2` | `intel/audio-analyzer` tag (speech to text) |
 
 ## API
 

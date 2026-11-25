@@ -10,7 +10,7 @@
 | **ui** (Next.js) | Screens only: Today, Consultations, System | `/api` only |
 | **scribe-aggregator** (FastAPI) | The Medical Scribe workflow: encounters API, transcription pipeline, speaker alignment, live sessions, SOAP note generation, per-stage timings, metrics proxy | all services below |
 | **encounter-store** (FastAPI + SQLite) | Encounters and doctor profiles. No other service reads its database | — |
-| **speech-to-text** | Transcription: OEP audio-analyzer (`edge-ai-libraries` 2026.2.1) with Whisper on OpenVINO GenAI, wrapped by the `oep` worker (health check, browser formats, model flags) | — |
+| **speech-to-text** | Transcription: the published OEP image `intel/audio-analyzer` (2026.3.0-rc2) with Whisper on OpenVINO GenAI. `services/speech-to-text/entrypoint.sh` (mounted) maps `configs/model-config.yaml` to its `AUDIO_ANALYZER__*` settings and adds the browser audio formats | — |
 | **diarization** | Who spoke when, pyannote `speaker-diarization-community-1`; speaker embeddings for doctor enrolment | — |
 | **text-generation** | OpenVINO Model Server 2026.4.1 serving the model in `configs/model-config.yaml` with the OpenAI chat API; model pulled and loaded at start | — |
 | **metrics-collector** | performance-tools (`intel/retail-benchmark`): CPU, GPU, NPU, memory, power | host `/sys`, `/proc` |
@@ -118,5 +118,5 @@ Encounter `status`: `new` → `recording` → `processing` → `transcribed` (or
 | One image per service | Independent builds and upgrades; each pins its own dependencies |
 | LLM model from `.env`, loaded at start | The service is ready on its own; no UI step loads the model |
 | OVMS release archive on our base image instead of `openvino/model_server:2026.4.1-gpu` | That image's GPU driver (26.18) makes Qwen3.5-4B int4 produce garbage text on Arrow Lake; the base pins the validated 26.05 |
-| audio-analyzer with the `oep` wrapper instead of the plain upstream image | The wrapper adds the health check, browser audio formats and model flags the pipeline needs |
-| Shared Python workspace in `libs/workers` | speech-to-text and diarization reuse the pinned, locked Demo Studio worker code |
+| The published `intel/audio-analyzer` image for speech to text | Nothing to build or vendor; the same transcripts and speed as the source build on Arrow Lake (validated with `2026.3.0-rc2` on the iGPU) |
+| Shared Python workspace in `libs/workers` | diarization reuses the pinned, locked Demo Studio worker code |

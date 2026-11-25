@@ -108,7 +108,7 @@
   <text x="1032" y="186" class="m">:8002</text>
   <rect x="1110" y="172" width="38" height="18" rx="9" fill="#0068b5"/>
   <text x="1129" y="185" class="pill" text-anchor="middle">GPU</text>
-  <text x="896" y="206" class="s">OEP audio-analyzer 2026.2.1 + wrapper</text>
+  <text x="896" y="206" class="s">intel/audio-analyzer 2026.3.0 (OEP)</text>
   <text x="896" y="224" class="s">Whisper large-v3-turbo · int8 · OpenVINO</text>
   <text x="896" y="244" class="m">/v1/audio/transcriptions</text>
   <text x="896" y="258" class="m">WS /v1/realtime</text>

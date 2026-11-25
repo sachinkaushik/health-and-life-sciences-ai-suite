@@ -7,7 +7,7 @@
 #   ui                 Next.js, presentation only
 #   scribe-aggregator  the Medical Scribe API: encounters, pipeline, live, SOAP note, metrics
 #   encounter-store    encounters and doctor profiles (SQLite)
-#   speech-to-text     OEP audio-analyzer (Whisper, OpenVINO)          GPU / NPU / CPU
+#   speech-to-text     intel/audio-analyzer (OEP, Whisper on OpenVINO)  GPU / NPU / CPU
 #   diarization        pyannote speaker diarization, voice enrolment    CPU / Intel GPU (xpu)
 #   text-generation    OpenVINO Model Server, model loaded at start     GPU / NPU / CPU
 #   metrics-collector  performance-tools: CPU, GPU, NPU, memory, power  (host network, privileged)
@@ -103,25 +103,28 @@ services:
 
   speech-to-text:
     <<: [*service, *accelerators]
-    image: ${REGISTRY:-intel/}hl-ai-medical-scribe-speech-to-text:${TAG:-latest}
-    build:
-      context: .
-      dockerfile: services/speech-to-text/Dockerfile
-      args: *build-args
+    # The published OEP audio-analyzer image, as is; services/speech-to-text/entrypoint.sh applies
+    # configs/model-config.yaml.
+    image: intel/audio-analyzer:${AUDIO_ANALYZER_TAG:-2026.3.0-rc2}
+    entrypoint: ["/bin/sh", "/opt/scribe/entrypoint.sh"]
     environment:
       <<: *proxy-env
-      HF_TOKEN: ${HF_TOKEN:-}
+      AUDIO_ANALYZER_SERVER_PORT: "8002"
     volumes:
+      - ./services/speech-to-text/entrypoint.sh:/opt/scribe/entrypoint.sh:ro
+      - ./libs/scripts/model_config.py:/opt/scribe/model_config.py:ro
       - ./configs:/configs:ro
-      - ${MODELS_DIR:-./models}:/opt/medical-scribe/models
-      - ${DATA_DIR:-./data}/speech-to-text:/opt/medical-scribe/data/speech-to-text
-      - ${LOGS_DIR:-./logs}:/opt/medical-scribe/logs
+      # Whisper source download and OpenVINO export (models/stt/openvino/<name>-<precision>).
+      - ${MODELS_DIR:-./models}/stt:/app/audio_analyzer/models
+      # Uploaded audio per request: clinical data, kept on the host data folder, not in the container.
+      - ${DATA_DIR:-./data}/speech-to-text:/app/audio_analyzer/storage
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8002/healthcheck"]
+      # The port opens only once the model is exported, loaded and warmed up.
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health', timeout=5)"]
       interval: 15s
       timeout: 10s
       retries: 5
-      # First start exports Whisper to OpenVINO.
+      # First start downloads Whisper and exports it to OpenVINO.
       start_period: 20m
 
   diarization:
