@@ -9,6 +9,10 @@ Part of the Health and Life Sciences AI Suite. It started as an Edge AI Demo Stu
 
 ## Architecture
 
+![Medical Scribe high-level architecture](docs/user-guide/_assets/architecture.png)
+
+Source: [architecture.svg](docs/user-guide/_assets/architecture.svg) (edit it, then re-render the PNG). The same as text:
+
 ```mermaid
 flowchart LR
   B["Browser"] -->|":8080"| GW["gateway<br/>nginx"]

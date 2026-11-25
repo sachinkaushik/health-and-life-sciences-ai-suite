@@ -1,5 +1,7 @@
 # How it works
 
+![Medical Scribe high-level architecture](_assets/architecture.png)
+
 ## Services and responsibilities
 
 | Service | Owns | Talks to |
