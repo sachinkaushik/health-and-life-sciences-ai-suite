@@ -96,6 +96,10 @@ services:
       <<: *build
       target: workers
     working_dir: /opt/medical-scribe/workers/engines/multiserve
+    # Loading the LLM while Whisper also initialises the GPU can crash OVMS, so it waits for STT.
+    depends_on:
+      speech-to-text:
+        condition: service_healthy
     # The model itself is loaded by the app (deployment.json / Runtime Settings) over /v1/start.
     command:
       - /opt/medical-scribe/workers/.venv/bin/python

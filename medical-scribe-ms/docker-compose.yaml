@@ -1,0 +1,202 @@
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+# Medical Scribe as a standalone suite app. Run with `make up` (see README.md).
+#
+#   gateway            the only published port: UI at /, API at /api
+#   ui                 Next.js, presentation only
+#   scribe-aggregator  the Medical Scribe API: encounters, pipeline, live, SOAP note, metrics
+#   encounter-store    encounters and doctor profiles (SQLite)
+#   speech-to-text     OEP audio-analyzer (Whisper, OpenVINO)          GPU / NPU / CPU
+#   diarization        pyannote speaker diarization, voice enrolment    CPU / Intel GPU (xpu)
+#   llm                OpenVINO Model Server, model loaded at start     GPU / NPU / CPU
+#   metrics-collector  performance-tools: CPU, GPU, NPU, memory, power  (host network, privileged)
+
+name: medical-scribe-ms
+
+x-proxy-env: &proxy-env
+  http_proxy: ${http_proxy:-}
+  https_proxy: ${https_proxy:-}
+  HTTP_PROXY: ${http_proxy:-}
+  HTTPS_PROXY: ${https_proxy:-}
+  no_proxy: localhost,127.0.0.1,speech-to-text,diarization,llm,encounter-store,scribe-aggregator,ui,gateway
+  NO_PROXY: localhost,127.0.0.1,speech-to-text,diarization,llm,encounter-store,scribe-aggregator,ui,gateway
+
+x-build-args: &build-args
+  BASE_IMAGE: ${REGISTRY:-intel/}hl-ai-medical-scribe-base:${TAG:-latest}
+  http_proxy: ${http_proxy:-}
+  https_proxy: ${https_proxy:-}
+  no_proxy: ${no_proxy:-}
+
+x-accelerators: &accelerators
+  devices:
+    - /dev/dri:/dev/dri
+    - ${NPU_DEVICE:-/dev/null}:/dev/accel/accel0
+  group_add:
+    - "${RENDER_GID:-992}"
+    - "${VIDEO_GID:-44}"
+
+x-service: &service
+  restart: unless-stopped
+  init: true
+  networks: [scribe]
+
+networks:
+  scribe:
+    name: medical-scribe-ms
+
+services:
+  gateway:
+    <<: *service
+    image: ${REGISTRY:-intel/}hl-ai-medical-scribe-gateway:${TAG:-latest}
+    build:
+      context: ./services/gateway
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${UI_PORT:-8080}:8080"
+    depends_on:
+      ui:
+        condition: service_healthy
+      scribe-aggregator:
+        condition: service_healthy
+
+  ui:
+    <<: *service
+    image: ${REGISTRY:-intel/}hl-ai-medical-scribe-ui:${TAG:-latest}
+    build:
+      context: ./services/ui
+      args:
+        http_proxy: ${http_proxy:-}
+        https_proxy: ${https_proxy:-}
+        no_proxy: ${no_proxy:-}
+
+  scribe-aggregator:
+    <<: *service
+    image: ${REGISTRY:-intel/}hl-ai-medical-scribe-aggregator:${TAG:-latest}
+    build:
+      context: ./services/scribe-aggregator
+      args:
+        http_proxy: ${http_proxy:-}
+        https_proxy: ${https_proxy:-}
+    environment:
+      STT_MODEL: ${STT_MODEL:-openai/whisper-large-v3-turbo}
+      STT_DEVICE: ${STT_DEVICE:-GPU}
+      DIARIZATION_DEVICE: ${DIARIZATION_DEVICE:-cpu}
+      LLM_MODEL_NAME: ${LLM_MODEL:-OpenVINO/Qwen3.5-4B-int4-ov}
+      LLM_DEVICE: ${LLM_DEVICE:-GPU}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.7}
+      LLM_TOP_P: ${LLM_TOP_P:-0.9}
+      LLM_REPETITION_PENALTY: ${LLM_REPETITION_PENALTY:-1.1}
+      LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-2048}
+      METRICS_URL: http://host.docker.internal:9000
+      SOAP_PROMPT_FILE: /configs/prompts/soap.md
+    volumes:
+      - ./configs:/configs:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      encounter-store:
+        condition: service_healthy
+
+  encounter-store:
+    <<: *service
+    image: ${REGISTRY:-intel/}hl-ai-medical-scribe-encounter-store:${TAG:-latest}
+    build:
+      context: ./services/encounter-store
+      args:
+        http_proxy: ${http_proxy:-}
+        https_proxy: ${https_proxy:-}
+    volumes:
+      - ${DATA_DIR:-./data}/encounter-store:/data
+
+  speech-to-text:
+    <<: [*service, *accelerators]
+    image: ${REGISTRY:-intel/}hl-ai-medical-scribe-speech-to-text:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: services/speech-to-text/Dockerfile
+      args: *build-args
+    environment:
+      <<: *proxy-env
+      HF_TOKEN: ${HF_TOKEN:-}
+      STT_MODEL: ${STT_MODEL:-openai/whisper-large-v3-turbo}
+      STT_DEVICE: ${STT_DEVICE:-GPU}
+      STT_PRECISION: ${STT_PRECISION:-int8}
+    volumes:
+      - ${MODELS_DIR:-./models}:/opt/medical-scribe/models
+      - ${DATA_DIR:-./data}/speech-to-text:/opt/medical-scribe/data/speech-to-text
+      - ${LOGS_DIR:-./logs}:/opt/medical-scribe/logs
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8002/healthcheck"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      # First start exports Whisper to OpenVINO.
+      start_period: 20m
+
+  diarization:
+    <<: [*service, *accelerators]
+    image: ${REGISTRY:-intel/}hl-ai-medical-scribe-diarization:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: services/diarization/Dockerfile
+      args: *build-args
+    environment:
+      <<: *proxy-env
+      HF_TOKEN: ${HF_TOKEN:-}
+      DIARIZATION_DEVICE: ${DIARIZATION_DEVICE:-cpu}
+    volumes:
+      - ${MODELS_DIR:-./models}:/opt/medical-scribe/models
+      - ${DATA_DIR:-./data}/diarization:/opt/medical-scribe/data/diarization
+      - ${LOGS_DIR:-./logs}:/opt/medical-scribe/logs
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8003/healthcheck"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 10m
+
+  llm:
+    <<: [*service, *accelerators]
+    image: ${REGISTRY:-intel/}hl-ai-medical-scribe-llm:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: services/llm/Dockerfile
+      args: *build-args
+    environment:
+      <<: *proxy-env
+      HF_TOKEN: ${HF_TOKEN:-}
+      LLM_MODEL: ${LLM_MODEL:-OpenVINO/Qwen3.5-4B-int4-ov}
+      LLM_DEVICE: ${LLM_DEVICE:-GPU}
+    volumes:
+      - ${MODELS_DIR:-./models}:/opt/medical-scribe/models
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8004/v2/health/ready"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      # First start downloads the model.
+      start_period: 30m
+    # Loading the LLM while Whisper also initialises the GPU can crash OVMS: one after the other.
+    depends_on:
+      speech-to-text:
+        condition: service_healthy
+
+  metrics-collector:
+    # performance-tools (intel-retail/performance-tools), as multi_modal_patient_monitoring uses it:
+    # CPU / GPU / NPU / memory / power over HTTP on :9000. Needs the host's /sys and /proc.
+    image: intel/retail-benchmark:${METRICS_TAG:-2026.3.0-rc2}
+    restart: unless-stopped
+    privileged: true
+    pid: host
+    network_mode: host
+    environment:
+      NPU_LOG: /tmp/results/npu_usage.csv
+      RESULTS_DIR: /tmp/results
+      QMASSA_CYCLE_SECONDS: "180"
+    volumes:
+      - ${METRICS_DIR:-./metrics}:/tmp/results
+      - /sys/devices:/sys/devices
+      - /dev/dri:/dev/dri:rw
+      - /sys/class/drm:/sys/class/drm:ro
+      - /sys/kernel/debug:/sys/kernel/debug:ro
+      - /proc:/proc

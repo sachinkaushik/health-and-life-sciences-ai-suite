@@ -1,0 +1,16 @@
+.env
+.git
+models
+data
+logs
+metrics
+**/node_modules
+**/.next
+**/__pycache__
+**/.venv
+**/thirdparty
+services/ui
+services/gateway
+services/scribe-aggregator
+services/encounter-store
+docs

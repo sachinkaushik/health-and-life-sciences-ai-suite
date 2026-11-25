@@ -15,11 +15,12 @@ FROM ubuntu:${UBUNTU_VERSION} AS runtime
 ARG DEBIAN_FRONTEND=noninteractive
 ARG APP_UID=1000
 ARG APP_GID=1000
-# Intel GPU/NPU user-space runtime, pinned as upstream audio-analyzer's Dockerfile pins it.
-ARG GPU_DRIVER_VERSION=26.18.38308.1
-ARG IGC_TAG=v2.34.4
-ARG IGC_VERSION=2.34.4+21428
-ARG GMMLIB_VERSION=22.10.0
+# Intel GPU/NPU user-space runtime. GPU stack = the host-validated 26.05: 26.18 (upstream
+# audio-analyzer's pin) makes Qwen3.5-4B int4 on OVMS produce garbage text on Arrow Lake.
+ARG GPU_DRIVER_VERSION=26.05.37020.3
+ARG IGC_TAG=v2.28.4
+ARG IGC_VERSION=2.28.4+20760
+ARG GMMLIB_VERSION=22.9.0
 ARG NPU_DRIVER_VERSION=1.33.0
 ARG NPU_DRIVER_BUILD=v1.33.0.20260529-26625960453-ubuntu2404
 ARG LEVEL_ZERO_VERSION=1.34.0-1~24.04~ppa1

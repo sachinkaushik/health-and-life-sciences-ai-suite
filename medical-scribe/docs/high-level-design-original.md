@@ -42,7 +42,7 @@ flowchart LR
 | diarization | `workers/services/diarization` | pyannote `speaker-diarization-community-1`; doctor voice embeddings |
 | text-generation | `workers/engines/multiserve` | multiserve in front of OVMS or llama.cpp; OpenAI-compatible chat |
 | medical-scribe-database | `workers/services/medical-scribe-database` | FastAPI + SQLite: sessions and doctor profiles |
-| helper | `workers/services/helper` | Shared helper worker included by the export |
+| helper | `workers/services/helper` | Command-line scripts that list OpenVINO and PyTorch devices for the UI's device pickers; not an HTTP service, and Medical Scribe does not start it |
 
 Sample defaults (`frontend/src/samples/medical-scribe/data.ts`):
 
@@ -51,6 +51,105 @@ Sample defaults (`frontend/src/samples/medical-scribe/data.ts`):
 | Speech to Text | `openai/whisper-large-v3-turbo` | GPU.0 |
 | Diarization | `pyannote/speaker-diarization-community-1` | xpu:0 |
 | Text Generation | `OpenVINO/Qwen3-8B-int8-ov` | GPU.0 |
+
+### 3.1 How it works
+
+#### Process manager (frontend, `frontend/src/lib/workers/`)
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant FE as Frontend
+  participant W as Worker (start.sh)
+  U->>FE: Start (or Prepare this sample)
+  FE->>FE: pick a free port block in 8100-8199, row status = prepare
+  FE->>W: spawn start.sh --port --instance-id --data-dir<br/>env: INSTANCE_*, HF_TOKEN, STARTUP_TIMEOUT
+  W->>W: uv sync, fetch OEP sources, download model
+  loop every ~10 s
+    FE->>W: GET health check
+  end
+  W-->>FE: 200, row status = active
+  U->>FE: Stop
+  FE->>W: kill process tree (+ optional stop.sh), release port
+```
+
+- **Start** (`worker-lifecycle.ts`, `process-handler.ts`): runs the worker's `start.sh` as a child process. It passes:
+  - flags `--port`, `--instance-id`, `--data-dir`;
+  - environment `INSTANCE_ID`, `INSTANCE_KEY`, `INSTANCE_DATA_DIR`;
+  - `HF_TOKEN` and the startup timeout from Settings.
+- **Ports** (`instance-ports.ts`): the first free block in **8100–8199** (override with `INSTANCE_PORT_RANGE`). The block is stored on the service row until the instance stops. A worker that needs more than one port (e.g. OVMS behind a worker) gets a block.
+- **Health** (`health/poller.ts`, `health/status.ts`):
+  - Every ~10 s the poller checks that the process is alive and calls its health check.
+  - The row goes `prepare` → `active` on the first healthy answer.
+  - It goes to `error` when the process exits, the startup timeout passes (default 600 s), or an active engine misses 3 checks in a row.
+- **Stop / crash:** kills the process tree (SIGTERM on Linux, tree-kill on Windows), runs `stop.sh` if the worker has one, releases the port and archives the log.
+- **Boot clean-up** (`app-boot.ts`): on every app start, rows are reset to inactive, ports are released, orphaned OVMS processes are killed, and port conflicts are cleaned up.
+- **Logs:** `logs/<type>@<instanceId>.log`, rotated; older runs go to `logs/old/`.
+
+#### Worker set-up (first start of each service)
+
+- `workers/setup.sh` downloads **uv** (0.13.7) and **OVMS** (2026.4.1) with SHA-256 checks, and adds Jinja2 to OVMS for chat templates.
+- All workers share one uv workspace environment, `workers/.venv`. Model converters (e.g. the Qwen3-ASR exporter) and the OEP audio-analyzer get their own `.venv`.
+- `workers/upstream-setup.sh fetch` copies OEP sources (e.g. audio-analyzer, model-download) at the tag pinned in `workers/upstream.json`, only when that service or model is first used.
+- Models are downloaded on first start into `models/<service>/…` (Hugging Face cache in `models/huggingface/`), using `HF_TOKEN` from Settings.
+- The first start therefore takes minutes; later starts reuse everything.
+
+#### speech-to-text
+
+- **`ovms` backend (default)**, `workers/services/speech-to-text/ovms`:
+  - The worker starts its own **OVMS** process (`ovms --pull --task speech2text`) on its port + 1 and serves the OpenAI-style API in front of it.
+  - Models:
+    - `openai/whisper-*` is exported to OpenVINO (int8 / fp16 / fp32 / int4) by the shared exporter;
+    - Qwen3-ASR has its own converter;
+    - `OpenVINO/*` repositories are downloaded as they are.
+  - Endpoints: `POST /v1/audio/transcriptions`, `POST /v1/audio/translations`, `WS /v1/audio/stream`, `GET /healthcheck`.
+  - **Live:** 16 kHz PCM frames over WebSocket. Silero VAD cuts utterances, and each utterance is transcribed and sent back with start/end times.
+  - **Word timestamps** for Qwen3-ASR come from `Qwen/Qwen3-ForcedAligner-0.6B-hf`.
+  - **Noise suppression** (optional, `use_denoise=true`): Open Model Zoo `noise-suppression-poconetlike-0001`.
+- **`oep` backend:** the OEP audio-analyzer, unchanged, with a thin wrapper. Whisper on OpenVINO GenAI; live mode over `WS /v1/realtime`.
+- **`meralion` backend:** `MERaLiON/MERaLiON-3-3B-ASR` only (Singapore / Southeast Asian speech); the language is always detected; transcription only.
+
+#### diarization
+
+- Loads the gated `pyannote/speaker-diarization-community-1` from Hugging Face into `models/diarization/`. It needs `HF_TOKEN` with the model's terms accepted.
+- **Batch:** `POST /v1/diarize` queues a job and returns `job_id`; the client polls `GET /v1/diarize/{id}` (or SSE `/events`); `DELETE` cancels. An optional reference embedding labels the matching speaker (Doctor) and the others (Patient).
+- **Enrolment:** `POST /v1/embedding` returns a speaker embedding from a short voice sample.
+- **Live:** `WS /v1/audio/stream`, with the same Silero VAD protocol as STT. pyannote re-runs on a rolling window at utterance boundaries, and speaker names are kept across utterances.
+- **Device:** `cpu` or Intel GPU `xpu:N` (PyTorch XPU).
+- In Medical Scribe the browser sends one microphone stream to both STT and diarization, and waits until both WebSockets are open so the timelines line up.
+
+#### text-generation (multiserve)
+
+- `workers/engines/multiserve/start.sh` prepares the worker and OVMS, picks the llama.cpp backend (SYCL / Vulkan / CPU), then runs `app-hybrid.py`.
+- multiserve is a FastAPI front end that **manages model servers**: it starts OVMS (OpenVINO models) or llama.cpp (GGUF models) as child processes.
+- The UI drives it over HTTP:
+  - `POST /v1/model/download/unverified` downloads a Hugging Face model into `models/multiserve/…`; OVMS models get a `graph.pbtxt`.
+  - `/v1/start` loads the model.
+  - `GET /v1/status` and `GET /v1/health` report state.
+- It proxies OpenAI-compatible routes (`/v1/chat/completions`, embeddings, rerank) to the running backend. The SOAP note is a streamed chat completion.
+
+#### medical-scribe-database
+
+- FastAPI + SQLAlchemy on SQLite in the instance data directory: `data/medical-scribe-database/<instance>/medical_scribe.db`.
+- Tables:
+  - `sessions`;
+  - `doctor_profiles`, which holds the voice embedding;
+  - `transcripts`, `diarization_segments`, `session_dialogues`, `reports`, `audio_buffers`.
+- Routes: `GET/POST /v1/sessions`, `PATCH/DELETE /v1/sessions/{id}`; `GET/POST /v1/doctor-profiles`, `PATCH/DELETE /v1/doctor-profiles/{id}`.
+
+#### System monitoring (frontend, `frontend/src/lib/system/system-monitoring.ts`)
+
+- CPU and memory come from Node.js (`os`).
+- **GPU (Linux):** `qmassa` (built by `setup.sh`) samples engine busy time over 1 s. On Windows: GPU performance counters.
+- **NPU (Linux):** `intel_vpu` sysfs (`/sys/class/accel`): busy time on newer kernels, otherwise active time. On Windows: performance counters.
+- Polled every ~5 s, with a few minutes of history for the charts.
+
+#### Settings (frontend, Payload global `app-settings`)
+
+- **Hugging Face token:** encrypted at rest and never returned by the API. Passed to workers as `HF_TOKEN` when they start, and masked (`hf_***`) in logs.
+- **Startup timeout:** default 600 s; how long a worker may take to become healthy.
+- **Proxy timeout:** default 300 s; how long the `/api/<type>@<id>/*` proxy waits for a worker.
+- **Theme:** light / dark / system.
 
 ## 4. Set-up and run
 
