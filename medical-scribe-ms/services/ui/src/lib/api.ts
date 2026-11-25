@@ -94,7 +94,7 @@ export const api = {
   deleteDoctor: (id: string) => request<void>(`/doctors/${id}`, { method: 'DELETE' }),
   enrolVoice: (id: string, audio: Blob) => {
     const form = new FormData()
-    form.append('file', audio, 'voice.webm')
+    form.append('file', audio, audio instanceof File ? audio.name : 'voice.webm')
     return request<Doctor>(`/doctors/${id}/voice`, { method: 'POST', body: form })
   },
   encounters: () => request<Encounter[]>('/encounters'),

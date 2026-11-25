@@ -35,6 +35,7 @@ import { type LiveSession, startLive } from '@/lib/live'
 import { usePolling } from '@/lib/use-polling'
 
 const SPEAKER_COLOR: Record<string, string> = { Doctor: 'text-[#0068b5]', Patient: 'text-emerald-600' }
+const ADD_DOCTOR = '__add_doctor__'
 
 export default function ConsultationsPage() {
   return (
@@ -98,7 +99,16 @@ function Consultations() {
   }, [recordingId])
   useEffect(() => () => live.current?.stop(), [])
 
+  /** A new recording replaces the transcript and drops the note: ask first. */
+  const confirmReplace = (e: Encounter) =>
+    e.transcript.length === 0 ||
+    confirm(
+      `"${e.name}" already has a transcript${e.note ? ' and a SOAP note' : ''}. ` +
+        `Replace ${e.note ? 'them' : 'it'} with a new recording?`,
+    )
+
   const startRecording = async (e: Encounter) => {
+    if (!confirmReplace(e)) return
     setError(null)
     setLiveLines([])
     setElapsed(0)
@@ -182,15 +192,12 @@ function Consultations() {
   const generating = Boolean(streaming && streaming.id === selected?.id)
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-3rem)] max-w-[1500px] flex-col gap-4">
+    <div className="mx-auto flex h-[calc(100dvh-6.5rem)] max-w-[1500px] flex-col gap-4">
       <header className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">Consultations</h1>
-        {status.data && (
-          <span
-            role="status"
-            className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${status.data.ready ? TONE_PILL.success : TONE_PILL.warning}`}
-          >
-            {status.data.ready ? 'AI ready' : `Waiting for: ${notReady.map((s) => s.label).join(', ')}`}
+        {status.data && !status.data.ready && (
+          <span role="status" className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${TONE_PILL.warning}`}>
+            Waiting for: {notReady.map((s) => s.label).join(', ')}
           </span>
         )}
         <button className="btn btn-outline ml-auto" onClick={() => setShowDoctors(true)}>
@@ -203,9 +210,9 @@ function Consultations() {
         </p>
       )}
 
-      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[18rem_1fr_1fr]">
+      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[16rem_1fr] lg:grid-rows-2 2xl:grid-cols-[17rem_1fr_1fr] 2xl:grid-rows-1">
         {/* Encounters */}
-        <section className="card flex min-h-0 flex-col p-4" aria-label="Encounters">
+        <section className="card flex min-h-0 flex-col p-4 lg:row-span-2 2xl:row-span-1" aria-label="Encounters">
           <form
             className="space-y-2"
             onSubmit={(e) => {
@@ -215,7 +222,12 @@ function Consultations() {
           >
             <h2 className="text-sm font-semibold">New encounter</h2>
             <input ref={nameRef} className="field" placeholder="Encounter name" value={name} onChange={(e) => setName(e.target.value)} maxLength={200} />
-            <select className="field" value={doctorId} onChange={(e) => setDoctorId(e.target.value)} aria-label="Doctor">
+            <select
+              className="field"
+              value={doctorId}
+              onChange={(e) => (e.target.value === ADD_DOCTOR ? setShowDoctors(true) : setDoctorId(e.target.value))}
+              aria-label="Doctor"
+            >
               <option value="">No doctor (2 speakers)</option>
               {(doctors.data ?? []).map((d) => (
                 <option key={d.id} value={d.id}>
@@ -223,6 +235,7 @@ function Consultations() {
                   {d.enrolled ? '' : ' (voice not enrolled)'}
                 </option>
               ))}
+              <option value={ADD_DOCTOR}>+ Add doctor…</option>
             </select>
             <select className="field" value={language} onChange={(e) => setLanguage(e.target.value)} aria-label="Language">
               {LANGUAGES.map((l) => (
@@ -277,7 +290,11 @@ function Consultations() {
                     <Mic className="size-4" aria-hidden /> Record
                   </button>
                 )}
-                <button className="btn btn-outline" disabled={!canTranscribe || Boolean(busy) || recordingId !== null} onClick={() => fileInput.current?.click()}>
+                <button
+                  className="btn btn-outline"
+                  disabled={!canTranscribe || Boolean(busy) || recordingId !== null}
+                  onClick={() => confirmReplace(selected) && fileInput.current?.click()}
+                >
                   <Upload className="size-4" aria-hidden /> Upload
                 </button>
                 <input

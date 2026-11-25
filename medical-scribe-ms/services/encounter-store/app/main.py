@@ -105,7 +105,7 @@ class EncounterPatch(BaseModel):
     transcript: list[TranscriptEntry] | None = None
     note: str | None = None
     reviewed: bool | None = None
-    timings: dict[str, float] | None = None
+    timings: dict[str, float | None] | None = None
     transcribed_at: str | None = None
     noted_at: str | None = None
 
@@ -247,8 +247,9 @@ def update_encounter(encounter_id: str, body: EncounterPatch) -> dict[str, Any]:
         if "transcript" in fields:
             fields["transcript"] = json.dumps(fields["transcript"])
         if "timings" in fields:
-            # Timings accumulate: transcription and note generation each add theirs.
-            fields["timings"] = json.dumps({**current["timings"], **(fields["timings"] or {})})
+            # Timings accumulate: transcription and note generation each add theirs; null removes one.
+            merged = {**current["timings"], **(fields["timings"] or {})}
+            fields["timings"] = json.dumps({k: v for k, v in merged.items() if v is not None})
         if "reviewed" in fields:
             fields["reviewed"] = int(bool(fields["reviewed"]))
         fields["updated_at"] = now()

@@ -107,11 +107,16 @@ async def _run(encounter_id: str, audio: bytes, filename: str) -> None:
         if audio_s > 0:
             timings["stt_rtf"] = round(stt_s / audio_s, 3)
             timings["diarization_rtf"] = round(diar_s / audio_s, 3)
+        # A note written from the previous transcript no longer matches this one.
+        stale_note = {k: None for k in ("note_seconds", "note_ttft_seconds", "note_tokens", "note_tokens_per_second")}
         await clients.update_encounter(
             encounter_id,
             status="transcribed",
             transcript=transcript,
-            timings=timings,
+            timings={**timings, **stale_note},
+            note=None,
+            noted_at=None,
+            reviewed=False,
             transcribed_at=datetime.now(timezone.utc).isoformat(),
         )
         log.info("encounter %s transcribed: %s", encounter_id, timings)

@@ -111,8 +111,15 @@ export async function startLive(encounterId: string, handlers: LiveHandlers): Pr
   }
 }
 
-/** Records `seconds` of microphone audio (webm/opus) for voice enrolment. */
-export async function recordSample(seconds: number, onTick: (left: number) => void): Promise<Blob> {
+export interface SampleRecorder {
+  /** Stops and returns the recording (webm/opus). */
+  stop: () => Promise<Blob>
+  /** Stops and drops the recording. */
+  cancel: () => void
+}
+
+/** Microphone recording for voice enrolment, stopped by the user. */
+export async function startSampleRecorder(): Promise<SampleRecorder> {
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
   const recorder = new MediaRecorder(stream)
   const chunks: Blob[] = []
@@ -124,11 +131,13 @@ export async function recordSample(seconds: number, onTick: (left: number) => vo
     }
   })
   recorder.start()
-  for (let left = seconds; left > 0; left--) {
-    onTick(left)
-    await new Promise((r) => setTimeout(r, 1000))
+  return {
+    stop: () => {
+      if (recorder.state !== 'inactive') recorder.stop()
+      return done
+    },
+    cancel: () => {
+      if (recorder.state !== 'inactive') recorder.stop()
+    },
   }
-  onTick(0)
-  recorder.stop()
-  return done
 }

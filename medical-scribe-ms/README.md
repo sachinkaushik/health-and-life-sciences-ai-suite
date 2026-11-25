@@ -77,7 +77,9 @@ make import-models FROM=../medical-scribe/models
 2. **New encounter**: name, doctor, language (or auto-detect).
 3. **Record** (live transcript while you speak) or **Upload** a recording. The transcript is labelled by speaker when processing ends.
 4. **Generate note**: the SOAP note streams in. Edit it, copy it, mark it reviewed.
-5. **System**: CPU, GPU, NPU, memory and power, and per-encounter AI timings.
+5. **System performance** (right-hand panel on every page, as in the patient-monitoring app):
+   platform configuration, AI pipeline status, live CPU / GPU / NPU / memory / power charts, and the
+   last encounter's AI timings. Collapse it with the arrow; **Details** opens the per-encounter timings table.
 
 ## Configuration (`.env`)
 
