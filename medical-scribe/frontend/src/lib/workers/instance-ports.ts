@@ -18,6 +18,7 @@ import {
   parseInstanceKey,
 } from '@/lib/instances/instances'
 import { logger } from '@/lib/logger'
+import { getExternalPort } from '@/lib/workers/external-services'
 
 /**
  * Dynamic port allocation: a starting instance gets the first free port block in the range, stored
@@ -192,6 +193,20 @@ export function ensureInstancePort(
       disableErrors: true,
     })
     const stored = current ? current.port : service.port
+    const external = getExternalPort(service.type)
+    if (external !== undefined) {
+      if (stored === external) return { ...service, port: external }
+      const updated = await payload.update({
+        collection: 'services',
+        id: service.id,
+        data: { port: external },
+      })
+      invalidateInstancePortCache()
+      logger.log(
+        `🔌 ${service.type}@${service.instanceId}: external service on port ${external}`,
+      )
+      return updated
+    }
     if (stored != null) return { ...service, port: stored }
 
     const port = await allocateInstancePortUnlocked(payload, {

@@ -9,6 +9,7 @@ import { getServiceMetadata } from '@/lib/instances/service-metadata'
 import { logger } from '@/lib/logger'
 import { canBind } from '@/lib/system/can-bind'
 import { ensureInstanceDataDir } from '@/lib/workers/instance-runtime'
+import { isExternalService } from '@/lib/workers/external-services'
 import { fetchLoopback } from '@/lib/workers/loopback'
 import {
   appendProcessLog,
@@ -197,6 +198,26 @@ const waitForHealthCheck = async (
   }
 
   logger.error(`${processName}: health check failed after maximum retries`)
+  return false
+}
+
+/** An engine run outside the app (EXTERNAL_SERVICES): wait for it to answer, as for a spawned one. */
+const waitForExternalEngine = async (
+  port: number,
+  processName: string,
+): Promise<boolean> => {
+  for (let i = 0; i < HEALTH_PROBE_ATTEMPTS; i++) {
+    if (
+      await isEngineHealthy(port, AbortSignal.timeout(HEALTH_PROBE_TIMEOUT_MS))
+    ) {
+      logger.log(`${processName}: external multiserve on port ${port} is up`)
+      return true
+    }
+    await sleep(HEALTH_PROBE_INTERVAL_MS)
+  }
+  logger.error(
+    `${processName}: external multiserve on port ${port} did not answer`,
+  )
   return false
 }
 
@@ -521,6 +542,9 @@ const startMultiserveServer = async (
     return false
   }
   const processName = getInstanceProcessName(service)
+  if (isExternalService(service)) {
+    return waitForExternalEngine(port, processName)
+  }
   if (listProcesses().some((p) => p.name === processName)) {
     logger.log(`${processName} is already running on port ${port}`)
     return true
@@ -655,7 +679,7 @@ export const getMultiserveEngineState = async (
   const { port } = service
   const healthy =
     port != null &&
-    isMultiserveRunning(service) &&
+    (isExternalService(service) || isMultiserveRunning(service)) &&
     (await isEngineHealthy(port))
   return { starting: false, healthy }
 }

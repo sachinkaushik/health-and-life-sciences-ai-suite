@@ -1,0 +1,17 @@
+# Runtime state and downloads: mounted or rebuilt, never baked in.
+models/
+data/
+logs/
+thirdparty/
+**/.venv/
+**/__pycache__/
+workers/thirdparty/
+workers/**/thirdparty/
+frontend/node_modules/
+frontend/.next/
+frontend/db.sqlite*
+frontend/.env
+frontend/test-results/
+frontend/playwright-report/
+docker/.env
+.git

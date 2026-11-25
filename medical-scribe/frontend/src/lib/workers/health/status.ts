@@ -154,6 +154,32 @@ async function determineEngineStatus(
   return { newStatus: null, newIsHealthy: false }
 }
 
+/** The status of a row run outside the app (EXTERNAL_SERVICES): no process, only its health check. */
+export async function determineExternalStatus(
+  service: Service,
+  status: PayloadStatus,
+  processName: string,
+): Promise<StatusResult> {
+  const { healthCheck, port } = service
+  if (!port || !healthCheck?.url) return UNCHANGED
+  // As for a spawned engine: its start ends once the model is loaded.
+  const mode = getRowExecutionMode(service)
+  if (
+    status === 'prepare' &&
+    mode !== 'worker' &&
+    mode !== 'none' &&
+    engineServers[mode]?.isStarting(processName)
+  ) {
+    return { newStatus: null, newIsHealthy: false }
+  }
+  const healthy = await performHealthCheck(
+    service,
+    port,
+    status === 'prepare' ? PREPARE_STATUS_RETRY_CONFIG : undefined,
+  )
+  return healthResult(healthy, status)
+}
+
 /** The status of a running (or active) row, on its execution mode. */
 export function determineServiceStatus(
   service: Service,

@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { useAppMode } from '@/context/app-mode'
 import { SampleInstancesProvider } from '@/context/sample-instances-context'
 import { cn } from '@/lib/utils'
 import { SampleParamsSlotContext } from '@/samples/common/sample-params-slot'
@@ -24,6 +25,7 @@ import { SampleLogDrawer } from './sample-log-drawer'
 import { SampleServicesSheet } from './sample-services-sheet'
 import { SampleSetupPanel } from './sample-setup-panel'
 import { SampleDemo } from './sample-demo'
+import { ServicesWaitingPanel } from './services-waiting-panel'
 import { StartAllServicesButton } from './start-all-services-button'
 import { useSampleServices } from './hooks/use-sample-services'
 
@@ -40,6 +42,8 @@ export function SampleDemoContent({ sampleId }: { sampleId: string }) {
 
 function SampleDemoContentInner({ sample }: { sample: Sample }) {
   const { view, allServices, retry, retrying } = useSampleServices(sample)
+  // The scribe app's services are containers: nothing here can start, stop or configure them.
+  const managed = useAppMode() === 'studio'
 
   const [paramsSlot, setParamsSlot] = useState<HTMLDivElement | null>(null)
   const [logsOpen, setLogsOpen] = useState(false)
@@ -77,63 +81,69 @@ function SampleDemoContentInner({ sample }: { sample: Sample }) {
     <div className="space-y-4">
       {/* One toolbar row: a short viewport needs every pixel above the workspace. */}
       <div className="surface-panel flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl px-4 py-2.5">
-        <Button asChild variant="ghost" size="icon-sm" className="shrink-0">
-          <Link
-            href={`/samples/${sample.id}`}
-            aria-label={`Back to ${sample.title}`}
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden />
-          </Link>
-        </Button>
+        {managed && (
+          <Button asChild variant="ghost" size="icon-sm" className="shrink-0">
+            <Link
+              href={`/samples/${sample.id}`}
+              aria-label={`Back to ${sample.title}`}
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden />
+            </Link>
+          </Button>
+        )}
         <h1 className="text-foreground min-w-0 truncate text-base leading-tight font-semibold">
-          {sample.title}
+          {managed ? sample.title : 'Consultations'}
         </h1>
         <ReadinessSummary view={view} variant="pill" />
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <Button
-            ref={servicesTriggerRef}
-            variant="outline"
-            size="sm"
-            className="gap-1.5 text-xs"
-            onClick={() => setServicesOpen(true)}
-            aria-haspopup="dialog"
-            aria-expanded={servicesOpen}
-            data-testid="sample-services-trigger"
-          >
-            <Server className="h-3.5 w-3.5" aria-hidden />
-            Services
-          </Button>
+          {managed && (
+            <Button
+              ref={servicesTriggerRef}
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs"
+              onClick={() => setServicesOpen(true)}
+              aria-haspopup="dialog"
+              aria-expanded={servicesOpen}
+              data-testid="sample-services-trigger"
+            >
+              <Server className="h-3.5 w-3.5" aria-hidden />
+              Services
+            </Button>
+          )}
           {/* The demo portals its Parameters sheet trigger here. */}
           <div ref={setParamsSlot} className="contents" />
-          <Button
-            data-testid="log-drawer-toggle"
-            variant="outline"
-            size="sm"
-            className={cn(
-              'relative gap-1.5 text-xs',
-              logsOpen && 'bg-accent text-accent-foreground',
-            )}
-            onClick={() => setLogsOpen((v) => !v)}
-            aria-expanded={logsOpen}
-            aria-controls="sample-log-drawer"
-          >
-            <ScrollText className="h-3.5 w-3.5" aria-hidden />
-            Logs
-            {(hasError || hasStarting) && (
-              <>
-                <span
-                  className={cn(
-                    'ring-background absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full ring-2',
-                    hasError ? 'bg-destructive' : 'bg-warning animate-pulse',
-                  )}
-                  aria-hidden
-                />
-                <span className="sr-only">
-                  {hasError ? ' (a service failed)' : ' (services starting)'}
-                </span>
-              </>
-            )}
-          </Button>
+          {managed && (
+            <Button
+              data-testid="log-drawer-toggle"
+              variant="outline"
+              size="sm"
+              className={cn(
+                'relative gap-1.5 text-xs',
+                logsOpen && 'bg-accent text-accent-foreground',
+              )}
+              onClick={() => setLogsOpen((v) => !v)}
+              aria-expanded={logsOpen}
+              aria-controls="sample-log-drawer"
+            >
+              <ScrollText className="h-3.5 w-3.5" aria-hidden />
+              Logs
+              {(hasError || hasStarting) && (
+                <>
+                  <span
+                    className={cn(
+                      'ring-background absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full ring-2',
+                      hasError ? 'bg-destructive' : 'bg-warning animate-pulse',
+                    )}
+                    aria-hidden
+                  />
+                  <span className="sr-only">
+                    {hasError ? ' (a service failed)' : ' (services starting)'}
+                  </span>
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -149,9 +159,9 @@ function SampleDemoContentInner({ sample }: { sample: Sample }) {
           view={view}
           suspended={suspended}
           offlineRequired={offlineRequired}
-          offerLogs={(hasError || hasStarting) && !logsOpen}
+          offerLogs={managed && (hasError || hasStarting) && !logsOpen}
           onViewLogs={() => setLogsOpen(true)}
-          onOpenServices={() => setServicesOpen(true)}
+          onOpenServices={managed ? () => setServicesOpen(true) : undefined}
         />
       )}
 
@@ -167,6 +177,8 @@ function SampleDemoContentInner({ sample }: { sample: Sample }) {
         </SampleWorkspaceProvider>
       ) : view.state === 'checking' ? (
         <DemoWorkspaceSkeleton />
+      ) : !managed ? (
+        <ServicesWaitingPanel view={view} />
       ) : (
         <SampleSetupPanel
           sample={sample}
@@ -179,14 +191,16 @@ function SampleDemoContentInner({ sample }: { sample: Sample }) {
         />
       )}
 
-      <SampleServicesSheet
-        sample={sample}
-        view={view}
-        open={servicesOpen}
-        onOpenChange={setServicesOpen}
-        fallbackFocus={servicesTriggerRef}
-      />
-      {hasRecommendedConfig(sample) && (
+      {managed && (
+        <SampleServicesSheet
+          sample={sample}
+          view={view}
+          open={servicesOpen}
+          onOpenChange={setServicesOpen}
+          fallbackFocus={servicesTriggerRef}
+        />
+      )}
+      {managed && hasRecommendedConfig(sample) && (
         <RecommendedConfigDialog
           sample={sample}
           open={recommendedOpen}
@@ -212,7 +226,8 @@ function WorkspaceStatusBanner({
   offlineRequired: string[]
   offerLogs: boolean
   onViewLogs: () => void
-  onOpenServices: () => void
+  /** Absent: the services are not this app's to start or configure. */
+  onOpenServices?: () => void
 }) {
   const style = readinessStyle(view.state)
   const StateIcon = style.icon
@@ -253,7 +268,7 @@ function WorkspaceStatusBanner({
         )}
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        {view.settled && !view.allRequiredOnline && (
+        {onOpenServices && view.settled && !view.allRequiredOnline && (
           <StartAllServicesButton dependencies={view.required} />
         )}
         {offerLogs && (
@@ -267,15 +282,17 @@ function WorkspaceStatusBanner({
             View logs
           </Button>
         )}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="gap-1.5"
-          onClick={onOpenServices}
-        >
-          <Settings className="h-3.5 w-3.5" aria-hidden />
-          Services
-        </Button>
+        {onOpenServices && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5"
+            onClick={onOpenServices}
+          >
+            <Settings className="h-3.5 w-3.5" aria-hidden />
+            Services
+          </Button>
+        )}
       </div>
     </div>
   )

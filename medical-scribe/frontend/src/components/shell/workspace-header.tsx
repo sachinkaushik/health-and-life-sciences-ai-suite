@@ -16,11 +16,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { useAppMode } from '@/context/app-mode'
 import { noteWorkVisit } from '@/hooks/use-service-shortcuts'
 import { safeHref, HREF_CHARS } from '@/lib/validation'
 import { getSampleById } from '@/samples/registry'
 import { getServiceById } from '@/services/registry'
-import { appPageFor } from './app-pages'
+import { appPageFor, appPagesFor } from './app-pages'
 
 // Show this platform's shortcut key. useSyncExternalStore (not an effect) so
 // the server and first client render agree.
@@ -31,8 +32,12 @@ const getIsMacOnServer = () => false
 export function WorkspaceHeader() {
   const pathname = usePathname()
   const isMac = useSyncExternalStore(subscribeNever, getIsMac, getIsMacOnServer)
-  const segments = pathname.split('/').filter(Boolean)
-  const section = appPageFor(pathname).title
+  const appMode = useAppMode()
+  const page = appPageFor(pathname, appPagesFor(appMode))
+  const parts = pathname.split('/').filter(Boolean)
+  // A nav entry deeper than one segment (Consultations) is its own single crumb.
+  const segments = pathname === page.href ? parts.slice(0, 1) : parts
+  const section = page.title
   // A service's or a sample's name: static metadata, the same before and
   // after the services list loads.
   const detail =
@@ -123,28 +128,30 @@ export function WorkspaceHeader() {
           </>
         )}
       </nav>
-      <div className="flex shrink-0 items-center gap-2 sm:gap-4">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={openCommandPalette}
-              aria-label="Search workspace"
-            >
-              <Search />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Search ({isMac ? '⌘' : 'Ctrl'} K)</TooltipContent>
-        </Tooltip>
-        <Link
-          href="/settings"
-          aria-label="Open workspace settings"
-          className="border-border bg-card text-primary hover:bg-accent flex size-9 items-center justify-center rounded-xl border transition-colors"
-        >
-          <Settings className="size-4" />
-        </Link>
-      </div>
+      {appMode === 'studio' && (
+        <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={openCommandPalette}
+                aria-label="Search workspace"
+              >
+                <Search />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Search ({isMac ? '⌘' : 'Ctrl'} K)</TooltipContent>
+          </Tooltip>
+          <Link
+            href="/settings"
+            aria-label="Open workspace settings"
+            className="border-border bg-card text-primary hover:bg-accent flex size-9 items-center justify-center rounded-xl border transition-colors"
+          >
+            <Settings className="size-4" />
+          </Link>
+        </div>
+      )}
     </header>
   )
 }

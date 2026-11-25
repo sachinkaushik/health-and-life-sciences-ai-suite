@@ -11,6 +11,7 @@ import { LeaveGuardHost } from '@/components/common/leave-guard'
 import { CommandPalette } from '@/components/sidebar/command-palette'
 import { SidebarNav } from '@/components/sidebar/sidebar-nav'
 import { Button } from '@/components/ui/button'
+import { useAppMode, useBranding } from '@/context/app-mode'
 import {
   Sheet,
   SheetContent,
@@ -24,6 +25,8 @@ import { ConnectionNotice } from './connection-notice'
 /** The app frame: sidebar (a sheet on small screens), header and main region. */
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const appMode = useAppMode()
+  const { name: appName } = useBranding()
   // Close the phone menu on navigation, including when the leave guard held
   // the click (so `onNavigate` never ran) and the user then left.
   const pathname = usePathname()
@@ -82,13 +85,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             className="object-contain"
           />
           <span className="text-sidebar-foreground text-sm font-semibold">
-            Edge AI Demo Studio
+            {appName}
           </span>
         </div>
       </header>
 
       {/* Mounted once, outside both sidebars: two palettes would bind ⌘K twice. */}
-      <CommandPalette />
+      {appMode === 'studio' && <CommandPalette />}
       <LeaveGuardHost />
 
       <div className="min-w-0 flex-1">

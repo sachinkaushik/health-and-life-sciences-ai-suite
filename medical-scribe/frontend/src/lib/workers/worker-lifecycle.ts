@@ -41,6 +41,7 @@ import {
   recordStartupEvent,
 } from '@/lib/workers/startup-telemetry'
 import { getRowExecutionMode } from '@/lib/workers/execution-mode'
+import { isExternalService } from '@/lib/workers/external-services'
 import { resolveWorkerDir } from '@/lib/workers/worker-dir'
 import type { Service } from '@/payload-types'
 import { getWorkerConfig } from '@/services/worker-registry'
@@ -86,6 +87,7 @@ export async function stopInstance(service: Service): Promise<void> {
   // A start in progress ends here; a failed one stays for its error row.
   cancelStartupAttempt(getInstanceProcessName(service))
   cancelEngineStarts(getInstanceProcessName(service))
+  if (isExternalService(service)) return
   await stopProcess(getInstanceProcessName(service))
   await runWorkerStopScript(service)
 }
@@ -167,6 +169,8 @@ async function startOnMode(
     return
   }
   if (mode === 'worker') {
+    // Already running outside the app: the health poller marks it active once it answers.
+    if (isExternalService(service)) return
     // Not awaited: the spawn may wait for another worker's install into workers/.venv (see
     // shared-env.ts), longer than a hook may hold the request for.
     startWorkerProcess(service, attemptId).catch((error) =>

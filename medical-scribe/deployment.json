@@ -1,0 +1,60 @@
+{
+  "$schema": "./docs/deployment.schema.json",
+  "services": {
+    "medical-scribe-database": [
+      {
+        "instanceId": "medical-scribe-database",
+        "label": "Medical Scribe Database",
+        "status": "online",
+        "engine": "worker"
+      }
+    ],
+    "speech-to-text": [
+      {
+        "instanceId": "speech-to-text",
+        "label": "Speech to Text",
+        "status": "online",
+        "engine": "worker",
+        "models": {
+          "default": {
+            "name": "openai/whisper-large-v3-turbo",
+            "device": "GPU",
+            "source": "huggingface"
+          }
+        },
+        "metadata": { "sttBackend": "oep" }
+      }
+    ],
+    "diarization": [
+      {
+        "instanceId": "speaker-diarization",
+        "label": "Speaker Diarization",
+        "status": "online",
+        "engine": "worker",
+        "models": {
+          "default": {
+            "name": "pyannote/speaker-diarization-community-1",
+            "device": "cpu",
+            "source": "huggingface"
+          }
+        }
+      }
+    ],
+    "text-generation": [
+      {
+        "instanceId": "text-generation",
+        "label": "Text Generation",
+        "status": "online",
+        "engine": "multiserve",
+        "models": {
+          "default": {
+            "name": "OpenVINO/Qwen3.5-4B-int4-ov",
+            "device": "AUTO",
+            "backend": "openvino",
+            "source": "huggingface"
+          }
+        }
+      }
+    ]
+  }
+}

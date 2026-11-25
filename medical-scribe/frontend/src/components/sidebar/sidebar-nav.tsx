@@ -16,7 +16,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { APP_PAGES } from '@/components/shell/app-pages'
+import { navSectionsFor } from '@/components/shell/app-pages'
+import { useAppMode, useBranding } from '@/context/app-mode'
 import { cn } from '@/lib/utils'
 import { SidebarServicesList } from './sidebar-services-list'
 
@@ -26,6 +27,9 @@ export function SidebarNav({
 }: { onNavigate?: () => void; variant?: 'desktop' | 'mobile' } = {}) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
+  const appMode = useAppMode()
+  const { name: appName } = useBranding()
+  const sections = navSectionsFor(appMode)
 
   // The mobile sidebar lives inside a fixed-width sheet, so collapsing it would
   // only leave a gap next to it.
@@ -85,7 +89,7 @@ export function SidebarNav({
           />
           {!collapsed && (
             <span className="text-sidebar-foreground min-w-0 truncate text-[13px] font-semibold whitespace-nowrap">
-              Edge AI Demo Studio
+              {appName}
             </span>
           )}
           {/* The phone menu is a sheet: a visible way out besides Escape
@@ -106,54 +110,69 @@ export function SidebarNav({
 
         {/* Only the services list below scrolls, so these entries stay on screen. */}
         <nav className="shrink-0 space-y-1 px-3 pt-4">
-          {!collapsed && (
-            <div className="mb-3 px-2">
-              <span className="text-sidebar-foreground/60 text-xs font-semibold tracking-wider uppercase">
-                Workspace
-              </span>
+          {sections.map((section, index) => (
+            <div
+              key={section.label}
+              className={cn('space-y-1', index > 0 && 'pt-4')}
+            >
+              {!collapsed && (
+                <div className="mb-3 px-2">
+                  <span className="text-sidebar-foreground/60 text-xs font-semibold tracking-wider uppercase">
+                    {section.label}
+                  </span>
+                </div>
+              )}
+              {section.pages.map((item) => {
+                const isActive =
+                  item.href === '/'
+                    ? pathname === '/'
+                    : pathname === item.href ||
+                      pathname.startsWith(`${item.href}/`)
+                const link = (
+                  <Link
+                    href={item.href}
+                    onClick={onNavigate}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={cn(
+                      'gradient-border relative flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                      isActive
+                        ? 'active bg-sidebar-accent text-sidebar-accent-foreground shadow-sm ring-1 ring-white/10'
+                        : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
+                      // Hidden labels keep their flex gap; drop it or the icon
+                      // sits left of centre.
+                      collapsed && 'justify-center gap-0 px-2',
+                    )}
+                  >
+                    <item.icon
+                      aria-hidden="true"
+                      className="h-4 w-4 shrink-0"
+                    />
+                    <span
+                      className={cn(
+                        'sidebar-label flex-1',
+                        collapsed && 'sidebar-label-hidden',
+                      )}
+                    >
+                      {item.label}
+                    </span>
+                  </Link>
+                )
+                return (
+                  <div key={item.href}>{withTooltip(item.label, link)}</div>
+                )
+              })}
             </div>
-          )}
-          {APP_PAGES.map((item) => {
-            const isActive =
-              item.href === '/'
-                ? pathname === '/'
-                : pathname.startsWith(item.href)
-            const link = (
-              <Link
-                href={item.href}
-                onClick={onNavigate}
-                aria-current={isActive ? 'page' : undefined}
-                className={cn(
-                  'gradient-border relative flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'active bg-sidebar-accent text-sidebar-accent-foreground shadow-sm ring-1 ring-white/10'
-                    : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
-                  // Hidden labels keep their flex gap; drop it or the icon
-                  // sits left of centre.
-                  collapsed && 'justify-center gap-0 px-2',
-                )}
-              >
-                <item.icon aria-hidden="true" className="h-4 w-4 shrink-0" />
-                <span
-                  className={cn(
-                    'sidebar-label flex-1',
-                    collapsed && 'sidebar-label-hidden',
-                  )}
-                >
-                  {item.label}
-                </span>
-              </Link>
-            )
-            return <div key={item.href}>{withTooltip(item.label, link)}</div>
-          })}
+          ))}
         </nav>
 
         <div className="flex min-h-0 flex-1 flex-col px-3 pb-3">
-          <SidebarServicesList
-            pathname={pathname}
-            collapsed={collapsed}
-            onNavigate={onNavigate}
-          />
+          {appMode === 'studio' && (
+            <SidebarServicesList
+              pathname={pathname}
+              collapsed={collapsed}
+              onNavigate={onNavigate}
+            />
+          )}
         </div>
 
         {!isMobile && (

@@ -47,7 +47,7 @@ Ports are the worker README defaults; the app assigns the actual port per servic
 - `oep/main.py` runs upstream's FastAPI app. It maps `--model/--device/--precision` to `AUDIO_ANALYZER__MODELS__ASR__*` environment overrides.
 - `model-download` (`common/downloader`) is pinned from the same tag.
 
-**Gap:** `frontend/src/services/speech-to-text/config.ts` sets `DEFAULT_STT_BACKEND = 'ovms'`, but `workers/services/speech-to-text/README.md` says `oep` is the default. A new install therefore runs OVMS unless the user switches backends.
+**Decision:** the OEP audio-analyzer (`oep`) is the speech-to-text engine of the HLS Medical Scribe. The existing pyannote Diarization worker stays as is. The export defaulted to `ovms`, although `workers/services/speech-to-text/README.md` already said `oep`; the default is now `oep`.
 
 ## 2. Phase 1: OEP audio-analyzer as the speech-to-text engine
 
@@ -57,7 +57,7 @@ Ports are the worker README defaults; the app assigns the actual port per servic
 
 | # | Change | File | Notes |
 |---|---|---|---|
-| 1 | Default backend `ovms` → `oep` | `frontend/src/services/speech-to-text/config.ts` (`DEFAULT_STT_BACKEND`) | One-line change; this also fixes the README mismatch. Existing instances keep their stored `sttBackend`. |
+| 1 | Default backend `ovms` → `oep` (**done**) | `frontend/src/services/speech-to-text/config.ts` (`DEFAULT_STT_BACKEND`), `frontend/src/lib/instances/service-metadata.ts` (`sttBackend.default`) | Instances with a stored `sttBackend` keep it; the others start on `oep`. |
 | 2 | Recommend `oep` + `openai/whisper-large-v3-turbo` on `GPU.0` for the sample | `frontend/src/samples/medical-scribe/data.ts` | Model and device are recommended already. Add a `backend` hint if the speech-to-text dependency supports it, as the text-generation dependency does. |
 | 3 | Move the pin to the 2026.3 release when it is tagged | `workers/upstream.json` via `workers/upstream-setup.sh pin <tag>` | The next start re-fetches audio-analyzer and rebuilds its `.venv`. Re-run the validation below. |
 | 4 | Keep the separate pyannote Diarization worker | – | audio-analyzer's own diarization (`AUDIO_ANALYZER__MODELS__ASR__DIARIZATION=true`) only gives anonymous `SPEAKER_xx` labels. It has no doctor voice enrolment, which the sample needs. Leave it off so pyannote is not loaded twice. |

@@ -22,6 +22,7 @@ import {
   initHealthCheckService,
   stopHealthCheckService,
 } from '@/lib/workers/health/poller'
+import { getExternalServicePorts } from '@/lib/workers/external-services'
 import { getPortsOfRow } from '@/lib/workers/instance-ports'
 import { moveLegacyDefaultArtifacts } from '@/lib/workers/instance-runtime'
 import {
@@ -164,10 +165,13 @@ async function syncServiceRows(payload: BasePayload) {
   }
 }
 
-/** Ports still recorded on service rows (allocated before the last shutdown). */
+/** Ports still recorded on service rows (allocated before the last shutdown); external services' excluded. */
 async function getInstancePorts(payload: BasePayload): Promise<number[]> {
   try {
-    return (await findAllRows(payload)).flatMap((d) => getPortsOfRow(d))
+    const external = getExternalServicePorts()
+    return (await findAllRows(payload))
+      .flatMap((d) => getPortsOfRow(d))
+      .filter((port) => !external.has(port))
   } catch (error) {
     logger.error('Could not read the ports recorded on service rows:', error)
     return []

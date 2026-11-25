@@ -20,7 +20,7 @@ export type SttBackendId = 'oep' | 'ovms' | 'meralion'
  */
 export const STT_AUTO_LANGUAGE = 'auto'
 
-const DEFAULT_STT_BACKEND: SttBackendId = 'ovms'
+const DEFAULT_STT_BACKEND: SttBackendId = 'oep'
 
 /** The model a new instance starts on (Whisper runs on the OEP and OVMS backends). */
 export const DEFAULT_STT_MODEL = 'openai/whisper-base'

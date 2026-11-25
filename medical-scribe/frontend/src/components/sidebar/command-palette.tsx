@@ -9,8 +9,9 @@ import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react'
 import { navigateWithLeaveGuard } from '@/components/common/leave-guard'
 import { shapedStatusDotClass } from '@/components/common/tones'
 import { useInterruptionGuard } from '@/components/services/instance-lifecycle'
-import { APP_PAGES } from '@/components/shell/app-pages'
+import { appPagesFor } from '@/components/shell/app-pages'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { useAppMode } from '@/context/app-mode'
 import { useServiceStatus } from '@/context/service-status-context'
 import { resolveServiceInfo } from '@/hooks/use-services'
 import { useServiceShortcuts } from '@/hooks/use-service-shortcuts'
@@ -70,6 +71,7 @@ export function CommandPalette() {
   const { recent, noteVisit } = useServiceShortcuts()
   const inUse = useServicesInUse()
   const { guard, dialog: interruptionDialog } = useInterruptionGuard()
+  const appMode = useAppMode()
 
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
@@ -93,7 +95,7 @@ export function CommandPalette() {
     recent,
     inUse,
     samples,
-    pages: APP_PAGES,
+    pages: appPagesFor(appMode),
     canToggle: (s) =>
       !hasExecutionMode(s.execution, 'none') &&
       resolveServiceInfo(serviceInfoMap, s.id) !== undefined,

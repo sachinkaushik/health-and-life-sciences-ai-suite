@@ -101,7 +101,7 @@ const SERVICE_METADATA_FIELDS: Record<
     schema: {
       type: 'string',
       enum: ['oep', 'ovms', 'meralion'],
-      default: 'ovms',
+      default: 'oep',
       description:
         'Backend of the Speech to Text service: "oep" runs the Open Edge Platform audio-analyzer natively (Whisper on OpenVINO GenAI, streaming and live /v1/realtime); "ovms" runs the built-in OpenVINO Model Server worker (batch transcription and translation, optional noise suppression); "meralion" runs the built-in MERaLiON worker, which serves MERaLiON/MERaLiON-3-3B-ASR only (set it as models.default.name; Singapore and Southeast Asian speech, language always detected, transcription only).',
     },

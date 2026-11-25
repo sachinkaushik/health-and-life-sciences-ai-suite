@@ -6,7 +6,9 @@ import { connection } from 'next/server'
 import './globals.css'
 import { DashboardShell } from '@/components/shell/dashboard-shell'
 import { Toaster } from '@/components/ui/sonner'
+import { AppModeProvider } from '@/context/app-mode'
 import { Providers } from '@/context/providers'
+import { type AppMode, BRANDING, parseAppMode } from '@/lib/branding'
 import {
   APP_SETTINGS_DEFAULTS,
   isTheme,
@@ -14,15 +16,21 @@ import {
 } from '@/lib/settings/app-settings'
 import { readAppSettingsSafe } from '@/lib/settings/app-settings-store'
 
-const APP_NAME = 'Edge AI Demo Studio'
+/** Read per request, not at build: one image serves every mode. */
+async function readAppMode(): Promise<AppMode> {
+  await connection()
+  return parseAppMode(process.env.APP_MODE)
+}
 
-export const metadata: Metadata = {
-  title: { default: APP_NAME, template: `%s · ${APP_NAME}` },
-  icons: {
-    icon: '/logo.svg',
-  },
-  description:
-    'Explore and manage Intel AI microservices and interactive samples powered by OpenVINO and Intel hardware.',
+export async function generateMetadata(): Promise<Metadata> {
+  const { name, description } = BRANDING[await readAppMode()]
+  return {
+    title: { default: name, template: `%s · ${name}` },
+    icons: {
+      icon: '/logo.svg',
+    },
+    description,
+  }
 }
 
 /**
@@ -44,6 +52,7 @@ export default async function RootLayout({
   children: React.ReactNode
 }>) {
   const theme = await readSavedTheme()
+  const appMode = await readAppMode()
   return (
     // The class is the saved theme when it is explicit; for `system` the
     // inline script picks it, hence suppressHydrationWarning.
@@ -58,7 +67,9 @@ export default async function RootLayout({
       </head>
       <body className="font-sans antialiased">
         <Providers initialTheme={theme}>
-          <DashboardShell>{children}</DashboardShell>
+          <AppModeProvider mode={appMode}>
+            <DashboardShell>{children}</DashboardShell>
+          </AppModeProvider>
           <Toaster richColors closeButton />
         </Providers>
       </body>

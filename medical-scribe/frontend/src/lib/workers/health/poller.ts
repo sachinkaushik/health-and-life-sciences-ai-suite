@@ -14,6 +14,7 @@ import { logger } from '@/lib/logger'
 import { APP_SETTINGS_DEFAULTS } from '@/lib/settings/app-settings'
 import { isPidAlive } from '@/lib/system/processes'
 import {
+  determineExternalStatus,
   determinePrepareStatus,
   determineServiceStatus,
   resetUnhealthyTicks,
@@ -25,6 +26,7 @@ import {
   removeDeadProcess,
 } from '@/lib/workers/process-handler'
 import { completeStartupAttempt } from '@/lib/workers/startup-telemetry'
+import { isExternalService } from '@/lib/workers/external-services'
 import type { Service } from '@/payload-types'
 
 const HEALTHCHECK_INTERVAL_MS = 10_000
@@ -101,6 +103,8 @@ async function checkService(
     return
   }
 
+  const external = isExternalService(service)
+
   // The startup timeout counts from entering `prepare` (`updatedAt`).
   if (status === 'prepare') {
     const elapsed = Date.now() - new Date(service.updatedAt).getTime()
@@ -115,11 +119,12 @@ async function checkService(
       })
       return
     }
-    if (!process) return
+    if (!process && !external) return
   }
 
-  const result: StatusResult =
-    status === 'prepare' && process
+  const result: StatusResult = external
+    ? await determineExternalStatus(service, status, processName)
+    : status === 'prepare' && process
       ? await determinePrepareStatus(service, process)
       : await determineServiceStatus(service, status, process, processName)
 
