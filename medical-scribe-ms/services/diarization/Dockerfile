@@ -10,6 +10,7 @@ FROM ${BASE_IMAGE}
 
 COPY --chown=appuser:appuser libs/scripts/bash scripts/bash
 COPY --chown=appuser:appuser libs/workers workers
+COPY --chown=appuser:appuser libs/scripts/model_config.py scripts/model_config.py
 
 RUN --mount=type=cache,target=/home/appuser/.cache/uv,uid=1000,gid=1000 \
     workers/upstream-setup.sh fetch common/downloader \
@@ -19,4 +20,5 @@ ENV SERVER_HOST=0.0.0.0
 WORKDIR /opt/medical-scribe/workers/services/diarization
 
 EXPOSE 8003
-CMD ["sh", "-c", "exec /opt/medical-scribe/workers/.venv/bin/python main.py --port=8003 --device=\"${DIARIZATION_DEVICE}\" --source=huggingface --instance-id=diarization --data-dir=/opt/medical-scribe/data/diarization"]
+# Device: configs/model-config.yaml (diarization).
+CMD ["sh", "-c", "eval \"$(/opt/medical-scribe/workers/.venv/bin/python /opt/medical-scribe/scripts/model_config.py diarization)\" && exec /opt/medical-scribe/workers/.venv/bin/python main.py --port=8003 --device=\"$DEVICE\" --source=huggingface --instance-id=diarization --data-dir=/opt/medical-scribe/data/diarization"]

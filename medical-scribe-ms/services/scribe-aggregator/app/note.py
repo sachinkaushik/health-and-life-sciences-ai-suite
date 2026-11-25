@@ -1,7 +1,8 @@
 # Copyright (C) 2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-"""SOAP note generation: the labelled transcript and the SOAP prompt (configs/prompts/soap.md) to the
-LLM, streamed back as server-sent events and saved with its timings once complete."""
+"""SOAP note generation: the labelled transcript and the SOAP prompt (prompts.soap in
+configs/model-config.yaml) to the LLM, streamed back as server-sent events and saved with its
+timings once complete."""
 
 from __future__ import annotations
 

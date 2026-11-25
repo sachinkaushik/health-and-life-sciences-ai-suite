@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # Text generation: OpenVINO Model Server 2026.4.1 (the release archive, checksum-verified) on the driver-pinned
-# base. The model is set at start from the environment (LLM_MODEL), downloaded on first start into
-# the models volume. Build context: the app root.
+# base. Model and device come from configs/model-config.yaml at start; the model is downloaded on
+# first start into the models volume. Build context: the app root.
 
 ARG BASE_IMAGE=intel/hl-ai-medical-scribe-base:latest
 FROM ${BASE_IMAGE}
@@ -19,7 +19,10 @@ RUN curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors -o /tmp/ovms.tar.gz 
     && tar -xzf /tmp/ovms.tar.gz --strip-components=1 -C /opt/ovms \
     && rm /tmp/ovms.tar.gz \
     # Chat templates, as workers/setup.sh adds them.
-    && uv pip install --no-cache --target /opt/ovms/lib/python "Jinja2==3.1.6" "MarkupSafe==3.0.2"
+    && uv pip install --no-cache --target /opt/ovms/lib/python "Jinja2==3.1.6" "MarkupSafe==3.0.2" \
+    # The model config reader, kept apart from OVMS' own Python path.
+    && uv pip install --no-cache --target /opt/model-config "PyYAML==6.0.3"
+COPY libs/scripts/model_config.py /opt/model-config/model_config.py
 COPY services/text-generation/entrypoint.sh /usr/local/bin/text-generation-entrypoint
 RUN chmod 755 /usr/local/bin/text-generation-entrypoint
 USER appuser

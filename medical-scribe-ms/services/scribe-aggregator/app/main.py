@@ -70,7 +70,7 @@ async def status() -> dict[str, Any]:
 async def app_config() -> dict[str, Any]:
     return {
         "stt": {"model": config.STT_MODEL, "device": config.STT_DEVICE},
-        "diarization": {"model": "pyannote/speaker-diarization-community-1", "device": config.DIARIZATION_DEVICE},
+        "diarization": {"model": config.DIARIZATION_MODEL, "device": config.DIARIZATION_DEVICE},
         "text_generation": {"model": config.LLM_MODEL_NAME, "device": config.LLM_DEVICE},
     }
 

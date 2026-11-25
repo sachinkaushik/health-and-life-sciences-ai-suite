@@ -33,7 +33,7 @@ flowchart LR
 | encounter-store | `intel/hl-ai-medical-scribe-encounter-store` | Encounters (transcript, note, timings) and doctor profiles (voice embedding) |
 | speech-to-text | `intel/hl-ai-medical-scribe-speech-to-text` | OEP audio-analyzer with Whisper on OpenVINO, batch and live (`/v1/realtime`) |
 | diarization | `intel/hl-ai-medical-scribe-diarization` | pyannote `speaker-diarization-community-1`, doctor voice embeddings |
-| text-generation | `intel/hl-ai-medical-scribe-text-generation` | OpenVINO Model Server writing the SOAP note; the model is set in `.env` (`LLM_MODEL`) and loaded at start |
+| text-generation | `intel/hl-ai-medical-scribe-text-generation` | OpenVINO Model Server writing the SOAP note; the model is set in `configs/model-config.yaml` and loaded at start |
 | metrics-collector | `intel/retail-benchmark` | performance-tools: CPU, GPU, NPU, memory and power on `:9000` |
 
 How it works in detail: [docs/user-guide/how-it-works.md](docs/user-guide/how-it-works.md).
@@ -81,19 +81,29 @@ make import-models FROM=../medical-scribe/models
    platform configuration, AI pipeline status, live CPU / GPU / NPU / memory / power charts, and the
    last encounter's AI timings. Collapse it with the arrow; **Details** opens the per-encounter timings table.
 
-## Configuration (`.env`)
+## Configuration
+
+### Models and devices (`configs/model-config.yaml`)
+
+Edit [configs/model-config.yaml](configs/model-config.yaml), then `make restart`. A new model is
+downloaded (and converted where needed) on first start.
+
+| Section | Keys (default) | |
+|---|---|---|
+| `speech-to-text` | `model` (`openai/whisper-large-v3-turbo`), `device` (`GPU`), `precision` (`int8`) | Device: `CPU`, `GPU`, `NPU` |
+| `diarization` | `model` (`pyannote/speaker-diarization-community-1`, fixed), `device` (`cpu`), `speaker_match_threshold` (`0.5`) | Device: `cpu` or `xpu:0` |
+| `text-generation` | `model` (`OpenVINO/Qwen3.5-4B-int4-ov`), `device` (`GPU`), `cache_size` (`0`) | Any Hugging Face OpenVINO LLM repository. Device: `CPU`, `GPU`, `NPU`, `AUTO` |
+| `text-generation.generation` | `temperature` (`0.7`), `top_p` (`0.9`), `repetition_penalty` (`1.1`), `max_tokens` (`2048`) | Note generation |
+
+The SOAP prompt is `prompts.soap` in the same file. It is read for every note, so prompt edits apply without a restart.
+
+### Deployment (`.env`)
 
 | Variable | Default | |
 |---|---|---|
 | `HF_TOKEN` | — | Required (diarization) |
-| `STT_MODEL` / `STT_DEVICE` / `STT_PRECISION` | `openai/whisper-large-v3-turbo` / `GPU` / `int8` | Speech to text |
-| `DIARIZATION_DEVICE` | `cpu` | `cpu` or `xpu:0` |
-| `LLM_MODEL` / `LLM_DEVICE` | `OpenVINO/Qwen3.5-4B-int4-ov` / `GPU` | Any Hugging Face OpenVINO LLM repository |
-| `LLM_TEMPERATURE`, `LLM_TOP_P`, `LLM_REPETITION_PENALTY`, `LLM_MAX_TOKENS` | `0.7`, `0.9`, `1.1`, `2048` | Note generation |
 | `BIND_ADDRESS` / `UI_PORT` | `127.0.0.1` / `8080` | Where the UI is published |
 | `TAG`, `REGISTRY` | `latest`, `intel/` | Image names |
-
-The SOAP prompt is [configs/prompts/soap.md](configs/prompts/soap.md). It is read for every note, so edits apply without a restart.
 
 ## API
 
@@ -120,6 +130,6 @@ curl -N -X POST localhost:8080/api/encounters/<id>/note                       # 
 
 ## Known limitations
 
-- Diarization runs on the CPU by default and is the slowest stage (about 1.6× the audio length on a Core Ultra 7 265K). `DIARIZATION_DEVICE=xpu:0` is not yet validated in the container.
+- Diarization runs on the CPU by default and is the slowest stage (about 1.6× the audio length on a Core Ultra 7 265K). `device: xpu:0` (diarization section of `configs/model-config.yaml`) is not yet validated in the container.
 - The live view shows the transcript only. Speaker labels appear when the recording has been processed.
 - The GPU user-space driver in the images is pinned to 26.05.37020.3, the version validated on the host. 26.18 (used by `openvino/model_server:2026.4.1-gpu`) makes Qwen3.5-4B int4 produce garbage text on Arrow Lake.

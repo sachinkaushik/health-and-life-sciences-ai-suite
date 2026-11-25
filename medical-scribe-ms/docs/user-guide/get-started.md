@@ -14,7 +14,8 @@
    ```
 
    Set `HF_TOKEN=hf_...` in `.env`. Behind a proxy, export `http_proxy` / `https_proxy` before
-   building and starting.
+   building and starting. Models and devices (CPU / GPU / NPU) are in
+   `configs/model-config.yaml`; after a change, run `make restart`.
 4. **Build and start:**
 
    ```bash

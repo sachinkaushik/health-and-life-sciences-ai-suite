@@ -11,6 +11,8 @@
 #   diarization        pyannote speaker diarization, voice enrolment    CPU / Intel GPU (xpu)
 #   text-generation    OpenVINO Model Server, model loaded at start     GPU / NPU / CPU
 #   metrics-collector  performance-tools: CPU, GPU, NPU, memory, power  (host network, privileged)
+#
+# Models and devices: configs/model-config.yaml (read by each AI service at start).
 
 name: medical-scribe-ms
 
@@ -78,17 +80,8 @@ services:
         http_proxy: ${http_proxy:-}
         https_proxy: ${https_proxy:-}
     environment:
-      STT_MODEL: ${STT_MODEL:-openai/whisper-large-v3-turbo}
-      STT_DEVICE: ${STT_DEVICE:-GPU}
-      DIARIZATION_DEVICE: ${DIARIZATION_DEVICE:-cpu}
-      LLM_MODEL_NAME: ${LLM_MODEL:-OpenVINO/Qwen3.5-4B-int4-ov}
-      LLM_DEVICE: ${LLM_DEVICE:-GPU}
-      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.7}
-      LLM_TOP_P: ${LLM_TOP_P:-0.9}
-      LLM_REPETITION_PENALTY: ${LLM_REPETITION_PENALTY:-1.1}
-      LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-2048}
       METRICS_URL: http://host.docker.internal:9000
-      SOAP_PROMPT_FILE: /configs/prompts/soap.md
+      MODEL_CONFIG: /configs/model-config.yaml
     volumes:
       - ./configs:/configs:ro
     extra_hosts:
@@ -118,10 +111,8 @@ services:
     environment:
       <<: *proxy-env
       HF_TOKEN: ${HF_TOKEN:-}
-      STT_MODEL: ${STT_MODEL:-openai/whisper-large-v3-turbo}
-      STT_DEVICE: ${STT_DEVICE:-GPU}
-      STT_PRECISION: ${STT_PRECISION:-int8}
     volumes:
+      - ./configs:/configs:ro
       - ${MODELS_DIR:-./models}:/opt/medical-scribe/models
       - ${DATA_DIR:-./data}/speech-to-text:/opt/medical-scribe/data/speech-to-text
       - ${LOGS_DIR:-./logs}:/opt/medical-scribe/logs
@@ -143,8 +134,8 @@ services:
     environment:
       <<: *proxy-env
       HF_TOKEN: ${HF_TOKEN:-}
-      DIARIZATION_DEVICE: ${DIARIZATION_DEVICE:-cpu}
     volumes:
+      - ./configs:/configs:ro
       - ${MODELS_DIR:-./models}:/opt/medical-scribe/models
       - ${DATA_DIR:-./data}/diarization:/opt/medical-scribe/data/diarization
       - ${LOGS_DIR:-./logs}:/opt/medical-scribe/logs
@@ -165,9 +156,8 @@ services:
     environment:
       <<: *proxy-env
       HF_TOKEN: ${HF_TOKEN:-}
-      LLM_MODEL: ${LLM_MODEL:-OpenVINO/Qwen3.5-4B-int4-ov}
-      LLM_DEVICE: ${LLM_DEVICE:-GPU}
     volumes:
+      - ./configs:/configs:ro
       - ${MODELS_DIR:-./models}:/opt/medical-scribe/models
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8004/v2/health/ready"]

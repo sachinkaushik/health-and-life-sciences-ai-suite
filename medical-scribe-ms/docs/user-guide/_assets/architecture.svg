@@ -98,7 +98,7 @@
   <text x="566" y="418" class="s">• speaker alignment</text>
   <text x="566" y="436" class="s">• live sessions (WS relay)</text>
   <text x="566" y="454" class="s">• SOAP note (SSE stream)</text>
-  <text x="566" y="472" class="s">• prompt: configs/prompts/soap.md</text>
+  <text x="566" y="472" class="s">• prompt: configs/model-config.yaml</text>
   <text x="566" y="490" class="s">• per-stage timings (RTF, TTFT,</text>
   <text x="566" y="508" class="s">   tokens/s) · metrics proxy</text>
 

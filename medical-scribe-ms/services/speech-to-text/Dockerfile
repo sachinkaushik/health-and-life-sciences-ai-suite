@@ -14,6 +14,7 @@ COPY --chown=appuser:appuser libs/workers/scripts workers/scripts
 COPY --chown=appuser:appuser libs/workers/common workers/common
 COPY --chown=appuser:appuser libs/workers/upstream.json libs/workers/upstream.schema.json libs/workers/upstream-setup.sh workers/
 COPY --chown=appuser:appuser libs/workers/services/speech-to-text/oep workers/services/speech-to-text/oep
+COPY --chown=appuser:appuser libs/scripts/model_config.py scripts/model_config.py
 
 # audio-analyzer at the pinned tag, in its own .venv from upstream's requirements.
 RUN --mount=type=cache,target=/home/appuser/.cache/uv,uid=1000,gid=1000 \
@@ -27,4 +28,5 @@ ENV PATH=$VIRTUAL_ENV/bin:$PATH
 WORKDIR /opt/medical-scribe/workers/services/speech-to-text/oep
 
 EXPOSE 8002
-CMD ["sh", "-c", "exec python main.py --port=8002 --model=\"${STT_MODEL}\" --device=\"${STT_DEVICE}\" --precision=\"${STT_PRECISION}\" --instance-id=speech-to-text --data-dir=/opt/medical-scribe/data/speech-to-text"]
+# Model, device and precision: configs/model-config.yaml (speech-to-text).
+CMD ["sh", "-c", "eval \"$(python /opt/medical-scribe/scripts/model_config.py speech-to-text)\" && exec python main.py --port=8002 --model=\"$MODEL\" --device=\"$DEVICE\" --precision=\"${PRECISION:-int8}\" --instance-id=speech-to-text --data-dir=/opt/medical-scribe/data/speech-to-text"]
