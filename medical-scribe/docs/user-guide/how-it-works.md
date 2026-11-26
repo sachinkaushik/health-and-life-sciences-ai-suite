@@ -61,6 +61,8 @@ sequenceDiagram
 
 ## Performance metrics
 
+For the original-vs-current pipeline comparison and multi-recording measurements, see [Performance](../performance.md).
+
 | Source | Metrics |
 |---|---|
 | metrics-collector (performance-tools) | CPU %, GPU %, NPU %, memory, package power, platform info; shown live on the System page |
