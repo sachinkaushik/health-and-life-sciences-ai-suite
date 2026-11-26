@@ -39,8 +39,7 @@ export default function TodayPage() {
   const notReady = status.data?.services.filter((s) => !s.ready) ?? []
   const modelOf: Record<string, string | undefined> = config
     ? {
-        'speech-to-text': `${config.stt.model} · ${config.stt.device}`,
-        diarization: `${config.diarization.model} · ${config.diarization.device}`,
+        'speech-to-text': `${config.stt.model} · ${config.stt.device}, speakers on ${config.diarization.device}`,
         'text-generation': `${config.text_generation.model} · ${config.text_generation.device}`,
       }
     : {}

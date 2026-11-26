@@ -270,12 +270,8 @@ export function PerformancePanel() {
               <p className="mb-1 truncate text-xs font-medium">{latest.name}</p>
               <Row label="Audio" value={latest.timings.audio_seconds ? formatClock(latest.timings.audio_seconds) : '—'} />
               <Row
-                label="Speech to text"
+                label="Speech to text + speakers"
                 value={latest.timings.stt_seconds ? `${latest.timings.stt_seconds}s · RTF ${latest.timings.stt_rtf ?? '—'}` : '—'}
-              />
-              <Row
-                label="Speakers"
-                value={latest.timings.diarization_seconds ? `${latest.timings.diarization_seconds}s · RTF ${latest.timings.diarization_rtf ?? '—'}` : '—'}
               />
               <Row label="Note: first words" value={latest.timings.note_ttft_seconds ? `${latest.timings.note_ttft_seconds}s` : '—'} />
               <Row label="Note: speed" value={latest.timings.note_tokens_per_second ? `${latest.timings.note_tokens_per_second} tokens/s` : '—'} />

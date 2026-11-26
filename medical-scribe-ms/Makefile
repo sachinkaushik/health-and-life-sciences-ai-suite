@@ -21,8 +21,8 @@ setup: ## Create .env (device groups, NPU) and the host folders
 	@grep -q '^RENDER_GID=.\+' $(ENV_FILE) || sed -i "s/^RENDER_GID=.*/RENDER_GID=$$(getent group render | cut -d: -f3)/" $(ENV_FILE)
 	@grep -q '^VIDEO_GID=.\+' $(ENV_FILE) || sed -i "s/^VIDEO_GID=.*/VIDEO_GID=$$(getent group video | cut -d: -f3)/" $(ENV_FILE)
 	@if [ -e /dev/accel/accel0 ]; then sed -i "s|^NPU_DEVICE=.*|NPU_DEVICE=/dev/accel/accel0|" $(ENV_FILE); fi
-	@mkdir -p models logs metrics data/encounter-store data/speech-to-text data/diarization
-	@grep -q '^HF_TOKEN=.\+' $(ENV_FILE) || echo "Set HF_TOKEN in $(ENV_FILE) before 'make up' (diarization needs it on every start)."
+	@mkdir -p models logs metrics data/encounter-store data/speech-to-text
+	@grep -q '^HF_TOKEN=.\+' $(ENV_FILE) || echo "Set HF_TOKEN in $(ENV_FILE) before 'make up' (speaker diarization needs it on every start)."
 	@echo "Setup done."
 
 build-base: setup ## Build the shared GPU/NPU runtime image
@@ -51,7 +51,7 @@ status: ## Container state and health
 
 import-models: setup ## Reuse models already downloaded by the Demo Studio app (FROM=<its models dir>)
 	@test -n "$(FROM)" || { echo "Usage: make import-models FROM=../medical-scribe/models"; exit 1; }
-	@for d in stt diarization huggingface; do \
+	@for d in stt; do \
 		if [ -d "$(FROM)/$$d" ]; then cp -al "$(FROM)/$$d" models/ 2>/dev/null || cp -a "$(FROM)/$$d" models/; echo "imported $$d"; fi; \
 	done
 	@src="$(FROM)/multiserve/text-generation/OV/text_generation"; \

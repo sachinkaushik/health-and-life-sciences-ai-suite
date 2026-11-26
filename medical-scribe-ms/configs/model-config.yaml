@@ -6,7 +6,7 @@
 # speech to text, exported to OpenVINO) on its first start. Prompts are read for every note, so
 # prompt edits apply without a restart.
 #
-# OpenVINO devices: CPU | GPU | NPU | AUTO. Diarization runs on PyTorch: cpu | xpu:0 (Intel GPU).
+# OpenVINO devices: CPU | GPU | NPU | AUTO.
 
 speech-to-text:
   # OEP audio-analyzer; a Hugging Face Whisper repository, exported to OpenVINO on first start.
@@ -15,9 +15,11 @@ speech-to-text:
   precision: int8            # int8 | fp16 | fp32
 
 diarization:
-  # pyannote pipeline; fixed by the service (gated: needs HF_TOKEN in .env).
+  # Who spoke when, inside speech-to-text (audio-analyzer); gated model: needs HF_TOKEN in .env.
   model: pyannote/speaker-diarization-community-1
-  device: cpu                # cpu | xpu:0
+  # CPU | GPU | NPU. GPU/NPU run the segmentation model on OpenVINO; speaker embeddings stay on CPU.
+  device: GPU
+  num_speakers: 2            # speakers per consultation
   # How close a voice must be to the enrolled doctor's to be labelled "Doctor" (0-1).
   speaker_match_threshold: 0.5
 

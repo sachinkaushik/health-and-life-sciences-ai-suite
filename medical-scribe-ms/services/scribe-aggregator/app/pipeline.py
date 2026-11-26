@@ -1,8 +1,8 @@
 # Copyright (C) 2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-"""The encounter pipeline: transcription and diarization in parallel, speaker alignment, then the
-labelled transcript and per-stage timings saved to the encounter store. Runs as a server-side task,
-so it finishes even when the browser that started it is closed."""
+"""The encounter pipeline: speech to text with speakers (audio-analyzer diarizes the whole file and
+recognises the enrolled doctor), then the labelled transcript and timings saved to the encounter
+store. Runs as a server-side task, so it finishes even when the browser that started it is closed."""
 
 from __future__ import annotations
 
@@ -14,9 +14,10 @@ from datetime import datetime, timezone
 from typing import Any
 
 from . import clients
-from .align import align_transcript
 
 log = logging.getLogger("scribe.pipeline")
+
+_CJK = re.compile("[\u3000-\u303f\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff01-\uff65]")
 
 _tasks: dict[str, asyncio.Task[None]] = {}
 
@@ -45,20 +46,39 @@ async def _timed(coro: Any) -> tuple[Any, float]:
     return result, time.perf_counter() - started
 
 
-async def _both(first: Any, second: Any) -> tuple[Any, Any]:
-    """Runs both; when one fails the other is cancelled (an orphaned diarization job would run on)."""
-    tasks = [asyncio.ensure_future(first), asyncio.ensure_future(second)]
-    try:
-        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_EXCEPTION)
-        for task in done:
-            if task.exception() is not None:
-                raise task.exception()  # type: ignore[misc]
-        return tasks[0].result(), tasks[1].result()
-    finally:
-        for task in tasks:
-            if not task.done():
-                task.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
+def _join(left: str, right: str) -> str:
+    """Joins with a space, except next to CJK characters."""
+    if not left or not right:
+        return left or right
+    return left + ("" if _CJK.match(left[-1]) or _CJK.match(right[0]) else " ") + right
+
+
+def _speaker_names(segments: list[dict[str, Any]]) -> dict[str, str]:
+    """Doctor / Patient when the enrolled doctor was recognised, else Speaker 1, 2, … in speaking order."""
+    order = list(dict.fromkeys(s["speaker"] for s in segments if s.get("speaker")))
+    doctor = {s["speaker"] for s in segments if s.get("speaker") and s.get("speaker_label") == "Doctor"}
+    if doctor:
+        return {sid: "Doctor" if sid in doctor else "Patient" for sid in order}
+    return {sid: f"Speaker {i + 1}" for i, sid in enumerate(order)}
+
+
+def labelled_transcript(segments: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Consecutive segments of one speaker merged into one entry."""
+    names = _speaker_names(segments)
+    entries: list[dict[str, Any]] = []
+    for segment in segments:
+        text = str(segment.get("text") or "").strip()
+        if not text:
+            continue
+        # A segment no speaker turn overlapped stays with the previous speaker.
+        speaker = names.get(segment.get("speaker") or "") or (entries[-1]["speaker"] if entries else "Speaker")
+        start, end = float(segment.get("start", 0)), float(segment.get("end", 0))
+        if entries and entries[-1]["speaker"] == speaker:
+            entries[-1]["text"] = _join(entries[-1]["text"], text)
+            entries[-1]["end"] = end
+        else:
+            entries.append({"speaker": speaker, "text": text, "start": start, "end": end})
+    return entries
 
 
 async def _run(encounter_id: str, audio: bytes, filename: str) -> None:
@@ -72,41 +92,27 @@ async def _run(encounter_id: str, audio: bytes, filename: str) -> None:
             except LookupError:
                 pass
 
-        (stt, stt_s), (segments, diar_s) = await _both(
-            _timed(clients.transcribe(audio, filename, encounter.get("language") or "auto")),
-            _timed(clients.diarize(audio, filename, embedding)),
+        stt, stt_s = await _timed(
+            clients.transcribe(audio, filename, encounter.get("language") or "auto", embedding)
         )
-        started = time.perf_counter()
-        words = [
-            {"text": str(w.get("word", "")).strip(), "start": float(w.get("start", 0)), "end": float(w.get("end", 0))}
-            for w in stt.get("words") or []
-        ]
-        stt_segments = [
-            {"text": str(s.get("text", "")).strip(), "start": float(s.get("start", 0)), "end": float(s.get("end", 0))}
-            for s in stt.get("segments") or []
-        ]
+        segments = list(stt.get("segments") or [])
         text = str(stt.get("text") or "").strip()
-        # Without an enrolled doctor pyannote names speakers SPEAKER_00, SPEAKER_01, …
-        segments = [
-            {**s, "speaker": re.sub(r"^SPEAKER_(\d+)$", lambda m: f"Speaker {int(m.group(1)) + 1}", str(s.get("speaker", "")))}
-            for s in segments
-        ]
-        transcript = align_transcript(text, segments, words, stt_segments)
+        transcript = labelled_transcript(segments)
         if not transcript and text:
-            end = stt_segments[-1]["end"] if stt_segments else 0.0
+            end = float(segments[-1].get("end", 0)) if segments else 0.0
             transcript = [{"speaker": "Speaker", "text": text, "start": 0.0, "end": end}]
-        align_s = time.perf_counter() - started
 
-        audio_s = float(stt.get("duration") or (stt_segments[-1]["end"] if stt_segments else 0.0))
-        timings = {
+        audio_s = float(stt.get("duration") or (segments[-1].get("end", 0) if segments else 0.0))
+        timings: dict[str, Any] = {
             "audio_seconds": round(audio_s, 2),
             "stt_seconds": round(stt_s, 2),
-            "diarization_seconds": round(diar_s, 2),
-            "align_seconds": round(align_s, 3),
+            # Speakers are now part of speech to text; clears the separate stage of older runs.
+            "diarization_seconds": None,
+            "diarization_rtf": None,
+            "align_seconds": None,
         }
         if audio_s > 0:
             timings["stt_rtf"] = round(stt_s / audio_s, 3)
-            timings["diarization_rtf"] = round(diar_s / audio_s, 3)
         # A note written from the previous transcript no longer matches this one.
         stale_note = {k: None for k in ("note_seconds", "note_ttft_seconds", "note_tokens", "note_tokens_per_second")}
         await clients.update_encounter(

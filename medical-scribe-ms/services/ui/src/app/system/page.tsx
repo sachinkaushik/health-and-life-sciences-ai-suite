@@ -126,8 +126,7 @@ export default function SystemPage() {
             <tr>
               <th className="py-2 pr-4 font-medium">Encounter</th>
               <th className="py-2 pr-4 font-medium">Audio</th>
-              <th className="py-2 pr-4 font-medium">Speech to text</th>
-              <th className="py-2 pr-4 font-medium">Speakers</th>
+              <th className="py-2 pr-4 font-medium">Speech to text + speakers</th>
               <th className="py-2 pr-4 font-medium">Note: first words</th>
               <th className="py-2 pr-4 font-medium">Note: tokens/s</th>
               <th className="py-2 font-medium">Note total</th>
@@ -144,7 +143,6 @@ export default function SystemPage() {
                   </td>
                   <td className="py-2 pr-4">{t.audio_seconds ? formatClock(t.audio_seconds) : '—'}</td>
                   <td className="py-2 pr-4">{t.stt_seconds ? `${t.stt_seconds}s · RTF ${t.stt_rtf ?? '—'}` : '—'}</td>
-                  <td className="py-2 pr-4">{t.diarization_seconds ? `${t.diarization_seconds}s · RTF ${t.diarization_rtf ?? '—'}` : '—'}</td>
                   <td className="py-2 pr-4">{t.note_ttft_seconds ? `${t.note_ttft_seconds}s` : '—'}</td>
                   <td className="py-2 pr-4">{t.note_tokens_per_second ?? '—'}</td>
                   <td className="py-2">{t.note_seconds ? `${t.note_seconds}s` : '—'}</td>

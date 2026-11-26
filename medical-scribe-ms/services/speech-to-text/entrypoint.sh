@@ -2,9 +2,15 @@
 # Copyright (C) 2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-# Starts the published intel/audio-analyzer image (mounted read-only, no build) with the speech-to-text
-# section of configs/model-config.yaml, translated into its AUDIO_ANALYZER__* settings, on :8002.
+# Starts the intel/audio-analyzer image (mounted read-only, no build) with the speech-to-text and
+# diarization sections of configs/model-config.yaml, translated into its AUDIO_ANALYZER__* settings, on :8002.
 set -eu
+
+eval "$(python3 /opt/scribe/model_config.py diarization)"
+export AUDIO_ANALYZER__MODELS__ASR__DIARIZATION=true
+export AUDIO_ANALYZER__MODELS__DIARIZATION__NAME="$MODEL"
+export AUDIO_ANALYZER__MODELS__DIARIZATION__DEVICE="$(echo "$DEVICE" | tr '[:lower:]' '[:upper:]')"
+echo "diarization: model=$MODEL device=$DEVICE"
 
 eval "$(python3 /opt/scribe/model_config.py speech-to-text)"
 

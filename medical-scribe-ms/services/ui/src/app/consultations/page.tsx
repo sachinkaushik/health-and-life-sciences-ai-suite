@@ -58,7 +58,7 @@ function Consultations() {
   const select = (id: string) => router.replace(`/consultations?id=${id}`)
 
   const ready = new Map((status.data?.services ?? []).map((s) => [s.id, s.ready]))
-  const canTranscribe = ready.get('speech-to-text') && ready.get('diarization') && ready.get('encounter-store')
+  const canTranscribe = ready.get('speech-to-text') && ready.get('encounter-store')
   const canWrite = ready.get('text-generation') && ready.get('encounter-store')
   const notReady = (status.data?.services ?? []).filter((s) => !s.ready)
 
@@ -364,7 +364,6 @@ function Consultations() {
               {formatTime(selected.transcribed_at)}
               {selected.timings.audio_seconds ? ` · ${formatClock(selected.timings.audio_seconds)} audio` : ''}
               {selected.timings.stt_seconds ? ` · transcribed in ${selected.timings.stt_seconds}s` : ''}
-              {selected.timings.diarization_seconds ? ` · speakers in ${selected.timings.diarization_seconds}s` : ''}
             </p>
           )}
         </section>

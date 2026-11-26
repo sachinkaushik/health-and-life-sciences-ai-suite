@@ -24,7 +24,6 @@ def _float(name: str, default: float) -> float:
 
 
 STT_URL = _env("STT_URL", "http://speech-to-text:8002")
-DIARIZATION_URL = _env("DIARIZATION_URL", "http://diarization:8003")
 LLM_URL = _env("LLM_URL", "http://text-generation:8004")
 STORE_URL = _env("STORE_URL", "http://encounter-store:8001")
 METRICS_URL = _env("METRICS_URL", "http://host.docker.internal:9000")
@@ -41,6 +40,7 @@ STT_MODEL = str(_stt.get("model", ""))
 STT_DEVICE = str(_stt.get("device", ""))
 DIARIZATION_MODEL = str(_diarization.get("model", ""))
 DIARIZATION_DEVICE = str(_diarization.get("device", ""))
+NUM_SPEAKERS = int(_diarization.get("num_speakers", 2))
 SPEAKER_MATCH_THRESHOLD = float(_diarization.get("speaker_match_threshold", 0.5))
 # Must equal the model name the text-generation service serves (it uses the repository id).
 LLM_MODEL_NAME = str(_llm.get("model", ""))
@@ -50,7 +50,6 @@ LLM_TOP_P = float(_generation.get("top_p", 0.9))
 LLM_REPETITION_PENALTY = float(_generation.get("repetition_penalty", 1.1))
 LLM_MAX_TOKENS = int(_generation.get("max_tokens", 2048))
 
-DIARIZATION_POLL_SECONDS = 1.0
 JOB_TIMEOUT_SECONDS = _float("JOB_TIMEOUT_SECONDS", 1800)
 MAX_UPLOAD_BYTES = int(_float("MAX_UPLOAD_MB", 200) * 1024 * 1024)
 

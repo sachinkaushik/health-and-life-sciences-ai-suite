@@ -18,8 +18,7 @@ flowchart LR
   B["Browser"] -->|":8080"| GW["gateway<br/>nginx"]
   GW -->|"/"| UI["ui<br/>Next.js (presentation)"]
   GW -->|"/api, /api/live (WS)"| AGG["scribe-aggregator<br/>Medical Scribe API"]
-  AGG --> STT["speech-to-text<br/>OEP audio-analyzer · Whisper"]
-  AGG --> DIA["diarization<br/>pyannote · voice enrolment"]
+  AGG --> STT["speech-to-text<br/>OEP audio-analyzer · Whisper + speakers"]
   AGG --> LLM["text-generation<br/>OpenVINO Model Server"]
   AGG --> ES["encounter-store<br/>SQLite"]
   AGG -.->|":9000"| MC["metrics-collector<br/>performance-tools"]
@@ -29,10 +28,9 @@ flowchart LR
 |---|---|---|
 | gateway | `intel/hl-ai-medical-scribe-gateway` | The only published port. UI at `/`, API at `/api` |
 | ui | `intel/hl-ai-medical-scribe-ui` | Today, Consultations and System pages. Calls only `/api` |
-| scribe-aggregator | `intel/hl-ai-medical-scribe-aggregator` | Encounters, doctors, the transcription pipeline, speaker alignment, live sessions, SOAP note streaming, metrics |
+| scribe-aggregator | `intel/hl-ai-medical-scribe-aggregator` | Encounters, doctors, the transcription pipeline, live sessions, SOAP note streaming, metrics |
 | encounter-store | `intel/hl-ai-medical-scribe-encounter-store` | Encounters (transcript, note, timings) and doctor profiles (voice embedding) |
-| speech-to-text | `intel/audio-analyzer` (published OEP image, not built) | Whisper on OpenVINO, batch and live (`/v1/realtime`) |
-| diarization | `intel/hl-ai-medical-scribe-diarization` | pyannote `speaker-diarization-community-1`, doctor voice embeddings |
+| speech-to-text | `intel/audio-analyzer:medical-scribe` (OEP, built from edge-ai-libraries, see below) | Whisper on OpenVINO, batch and live (`/v1/realtime`); pyannote speaker diarization over the whole recording, the enrolled doctor recognised by voice; doctor voice embeddings |
 | text-generation | `intel/hl-ai-medical-scribe-text-generation` | OpenVINO Model Server writing the SOAP note; the model is set in `configs/model-config.yaml` and loaded at start |
 | metrics-collector | `intel/retail-benchmark` | performance-tools: CPU, GPU, NPU, memory and power on `:9000` |
 
@@ -51,8 +49,18 @@ How it works in detail: [docs/user-guide/how-it-works.md](docs/user-guide/how-it
 ```bash
 make setup                 # creates .env and the host folders
 # edit .env: HF_TOKEN=hf_...
-make build                 # base image + 7 service images
+make build                 # base image + 5 service images
 make up                    # starts everything and waits until healthy
+```
+
+Speech to text uses audio-analyzer with whole-file diarization and speaker profiles, which is not
+published yet. Build it once from
+[edge-ai-libraries](https://github.com/open-edge-platform/edge-ai-libraries) (branch
+`feature/audio-analyzer-speaker-profiles`):
+
+```bash
+cd edge-ai-libraries/microservices/audio-analyzer
+RELEASE_TAG=medical-scribe docker compose build audio-analyzer   # intel/audio-analyzer:medical-scribe
 ```
 
 Open <http://127.0.0.1:8080>.
@@ -91,7 +99,7 @@ downloaded (and converted where needed) on first start.
 | Section | Keys (default) | |
 |---|---|---|
 | `speech-to-text` | `model` (`openai/whisper-large-v3-turbo`), `device` (`GPU`), `precision` (`int8`) | Device: `CPU`, `GPU`, `NPU` |
-| `diarization` | `model` (`pyannote/speaker-diarization-community-1`, fixed), `device` (`cpu`), `speaker_match_threshold` (`0.5`) | Device: `cpu` or `xpu:0` |
+| `diarization` | `model` (`pyannote/speaker-diarization-community-1`), `device` (`GPU`), `num_speakers` (`2`), `speaker_match_threshold` (`0.5`) | Runs inside speech-to-text. Device: `CPU`, `GPU`, `NPU` |
 | `text-generation` | `model` (`OpenVINO/Qwen3.5-4B-int4-ov`), `device` (`GPU`), `cache_size` (`0`) | Any Hugging Face OpenVINO LLM repository. Device: `CPU`, `GPU`, `NPU`, `AUTO` |
 | `text-generation.generation` | `temperature` (`0.7`), `top_p` (`0.9`), `repetition_penalty` (`1.1`), `max_tokens` (`2048`) | Note generation |
 
@@ -101,10 +109,10 @@ The SOAP prompt is `prompts.soap` in the same file. It is read for every note, s
 
 | Variable | Default | |
 |---|---|---|
-| `HF_TOKEN` | — | Required (diarization) |
+| `HF_TOKEN` | — | Required (speaker diarization) |
 | `BIND_ADDRESS` / `UI_PORT` | `127.0.0.1` / `8080` | Where the UI is published |
 | `TAG`, `REGISTRY` | `latest`, `intel/` | Image names |
-| `AUDIO_ANALYZER_TAG` | `2026.3.0-rc2` | `intel/audio-analyzer` tag (speech to text) |
+| `AUDIO_ANALYZER_TAG` | `medical-scribe` | `intel/audio-analyzer` tag (speech to text and speakers) |
 
 ## API
 
@@ -131,6 +139,6 @@ curl -N -X POST localhost:8080/api/encounters/<id>/note                       # 
 
 ## Known limitations
 
-- Diarization runs on the CPU by default and is the slowest stage (about 1.6× the audio length on a Core Ultra 7 265K). `device: xpu:0` (diarization section of `configs/model-config.yaml`) is not yet validated in the container.
+- Speakers are found in one pass over the whole recording (about 0.2× the audio length with `device: GPU` on a Core Ultra 7 265K, 0.4× on the CPU), in parallel with transcription. Voice profiles enrolled before this version came from the previous diarization service; if the doctor is not recognised, enrol the voice again.
 - The live view shows the transcript only. Speaker labels appear when the recording has been processed.
-- The GPU user-space driver in the images is pinned to 26.05.37020.3, the version validated on the host. 26.18 (used by `openvino/model_server:2026.4.1-gpu`) makes Qwen3.5-4B int4 produce garbage text on Arrow Lake.
+- The GPU user-space driver in the base image is pinned to 26.05.37020.3, the version validated on the host. 26.18 (used by `openvino/model_server:2026.4.1-gpu`) makes Qwen3.5-4B int4 produce garbage text on Arrow Lake; audio-analyzer ships 26.18 and its Whisper and pyannote output is correct with it.

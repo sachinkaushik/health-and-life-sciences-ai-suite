@@ -8,10 +8,9 @@
 |---|---|---|
 | **gateway** (nginx) | The single entry point: `/` → ui, `/api` → scribe-aggregator (HTTP, server-sent events, WebSocket) | ui, scribe-aggregator |
 | **ui** (Next.js) | Screens only: Today, Consultations, System | `/api` only |
-| **scribe-aggregator** (FastAPI) | The Medical Scribe workflow: encounters API, transcription pipeline, speaker alignment, live sessions, SOAP note generation, per-stage timings, metrics proxy | all services below |
+| **scribe-aggregator** (FastAPI) | The Medical Scribe workflow: encounters API, transcription pipeline, speaker labels, live sessions, SOAP note generation, per-stage timings, metrics proxy | all services below |
 | **encounter-store** (FastAPI + SQLite) | Encounters and doctor profiles. No other service reads its database | — |
-| **speech-to-text** | Transcription: the published OEP image `intel/audio-analyzer` (2026.3.0-rc2) with Whisper on OpenVINO GenAI. `services/speech-to-text/entrypoint.sh` (mounted) maps `configs/model-config.yaml` to its `AUDIO_ANALYZER__*` settings and adds the browser audio formats | — |
-| **diarization** | Who spoke when, pyannote `speaker-diarization-community-1`; speaker embeddings for doctor enrolment | — |
+| **speech-to-text** | OEP audio-analyzer (`intel/audio-analyzer:medical-scribe`): Whisper on OpenVINO GenAI; pyannote `speaker-diarization-community-1` over the whole recording with the doctor's voice profile; voice embeddings for enrolment. `services/speech-to-text/entrypoint.sh` (mounted) maps `configs/model-config.yaml` to its `AUDIO_ANALYZER__*` settings and adds the browser audio formats | — |
 | **text-generation** | OpenVINO Model Server 2026.4.1 serving the model in `configs/model-config.yaml` with the OpenAI chat API; model pulled and loaded at start | — |
 | **metrics-collector** | performance-tools (`intel/retail-benchmark`): CPU, GPU, NPU, memory, power | host `/sys`, `/proc` |
 
@@ -26,27 +25,24 @@ sequenceDiagram
   participant UI
   participant A as scribe-aggregator
   participant S as speech-to-text
-  participant D as diarization
   participant E as encounter-store
   UI->>A: POST /api/encounters/{id}/audio
   A-->>UI: 202 processing
-  par
-    A->>S: POST /v1/audio/transcriptions (verbose_json, word + segment timings)
-  and
-    A->>D: POST /v1/diarize (doctor voice embedding) → poll job
-  end
-  A->>A: align words to speaker turns
+  A->>S: POST /v1/audio/transcriptions (verbose_json, diarization_mode=file, doctor speaker profile)
+  A->>A: merge consecutive segments of one speaker
   A->>E: PATCH encounter (transcript, timings, status=transcribed)
   UI->>A: GET /api/encounters/{id} (poll)
 ```
 
-- Speaker alignment (`services/scribe-aggregator/app/align.py`):
-  1. Each timed word goes to the speaker turn it overlaps most.
-  2. Words are grouped into sentences.
-  3. Each sentence takes the speaker with the most word time.
-  - Falls back to segment timings, then to splitting by duration.
-- With an enrolled doctor, the voice that matches the doctor's embedding is **Doctor** and the other **Patient**. Without one, two speakers are labelled *Speaker 1* and *Speaker 2*.
-- If one of the two calls fails, the other is cancelled and the encounter shows the error.
+- audio-analyzer transcribes the recording in chunks and, in parallel, diarizes the whole
+  recording once (`num_speakers` from `configs/model-config.yaml`), so a speaker keeps one label
+  throughout. Each segment carries its speaker.
+- With an enrolled doctor, the request carries the doctor's voice embedding as a speaker profile;
+  the voice that matches it (cosine similarity ≥ `speaker_match_threshold`) is **Doctor** and the
+  other **Patient**. Without one, or if the doctor is not recognised, speakers are labelled
+  *Speaker 1*, *Speaker 2* in speaking order.
+- Enrolment (`POST /api/doctors/{id}/voice`) sends the sample to audio-analyzer's
+  `/v1/audio/speaker-embedding`; only the embedding is stored.
 
 ## Live flow
 
@@ -55,7 +51,7 @@ sequenceDiagram
   - relays the audio to audio-analyzer's OpenAI Realtime-style `/v1/realtime`;
   - sends each transcribed utterance back as `{"type": "utterance", "text"}`;
   - keeps the audio.
-- On **Stop** (or if the browser disconnects), the recording goes through the upload flow, which adds word timings and speaker labels.
+- On **Stop** (or if the browser disconnects), the recording goes through the upload flow, which adds the speaker labels.
 
 ## SOAP note
 
@@ -68,15 +64,14 @@ sequenceDiagram
 | Source | Metrics |
 |---|---|
 | metrics-collector (performance-tools) | CPU %, GPU %, NPU %, memory, package power, platform info; shown live on the System page |
-| scribe-aggregator, per encounter | audio length; speech-to-text time and real-time factor (RTF); diarization time and RTF; note time to first words, tokens/s, total time |
+| scribe-aggregator, per encounter | audio length; speech-to-text time (including speakers) and real-time factor (RTF); note time to first words, tokens/s, total time |
 
-Measured on Core Ultra 7 265K (Whisper large-v3-turbo int8 on GPU, pyannote on CPU, Qwen3.5-4B int4
+Measured on Core Ultra 7 265K (Whisper large-v3-turbo int8 on GPU, pyannote on GPU, Qwen3.5-4B int4
 on GPU), 133 s consultation:
 
 | Stage | Time |
 |---|---|
-| Speech to text | 15.6 s (RTF 0.12) |
-| Diarization | 221 s (RTF 1.66) |
+| Speech to text with speakers | about 29 s (RTF 0.22); pyannote on the CPU: about 54 s |
 | SOAP note | first words 3.0 s, 14.8 tokens/s, 22.8 s total |
 
 ## API
@@ -104,8 +99,7 @@ Encounter `status`: `new` → `recording` → `processing` → `transcribed` (or
 | Host folder | Contents |
 |---|---|
 | `data/encounter-store/` | `encounters.db`: encounters, transcripts, notes, doctor voice embeddings (clinical data) |
-| `models/stt`, `models/huggingface` | Whisper OpenVINO export and its source |
-| `models/diarization` | pyannote pipeline |
+| `models/stt` | Whisper source and OpenVINO export, pyannote pipeline (audio-analyzer) |
 | `models/text-generation` | The LLM (OpenVINO IR) |
 | `logs/`, `metrics/` | Service logs, raw metrics-collector output |
 
@@ -118,5 +112,4 @@ Encounter `status`: `new` → `recording` → `processing` → `transcribed` (or
 | One image per service | Independent builds and upgrades; each pins its own dependencies |
 | LLM model from `.env`, loaded at start | The service is ready on its own; no UI step loads the model |
 | OVMS release archive on our base image instead of `openvino/model_server:2026.4.1-gpu` | That image's GPU driver (26.18) makes Qwen3.5-4B int4 produce garbage text on Arrow Lake; the base pins the validated 26.05 |
-| The published `intel/audio-analyzer` image for speech to text | Nothing to build or vendor; the same transcripts and speed as the source build on Arrow Lake (validated with `2026.3.0-rc2` on the iGPU) |
-| Shared Python workspace in `libs/workers` | diarization reuses the pinned, locked Demo Studio worker code |
+| audio-analyzer for speech to text and speakers | One service for both; whole-file diarization with the doctor's speaker profile labels 57 of 58 test segments correctly, against 45 with its per-chunk kiosk mode. Built from edge-ai-libraries (`feature/audio-analyzer-speaker-profiles`) until released |

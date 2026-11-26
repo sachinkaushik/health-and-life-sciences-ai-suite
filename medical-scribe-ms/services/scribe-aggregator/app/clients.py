@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import time
 from typing import Any, AsyncIterator
 
 import httpx
@@ -53,62 +52,35 @@ async def update_encounter(encounter_id: str, **fields: Any) -> dict[str, Any]:
 
 
 # ------------------------------------------------------------ speech-to-text --
-async def transcribe(audio: bytes, filename: str, language: str) -> dict[str, Any]:
-    """verbose_json with word and segment timings (the oep wrapper detects the language on auto)."""
+async def transcribe(
+    audio: bytes, filename: str, language: str, doctor_embedding: list[float] | None
+) -> dict[str, Any]:
+    """verbose_json with speakers: audio-analyzer diarizes the whole file. With an enrolled doctor,
+    the matching voice's segments carry speaker_label "Doctor"."""
     data: dict[str, str | list[str]] = {
         "model": "whisper-1",
         "response_format": "verbose_json",
-        "timestamp_granularities[]": ["word", "segment"],
+        "language": language or "auto",
+        "diarization_mode": "file",
+        "num_speakers": str(config.NUM_SPEAKERS),
     }
-    if language and language != "auto":
-        data["language"] = language
+    if doctor_embedding:
+        data["speaker_profiles"] = json.dumps([{"label": "Doctor", "embedding": doctor_embedding}])
+        data["speaker_match_threshold"] = str(config.SPEAKER_MATCH_THRESHOLD)
     resp = await http().post(
         f"{config.STT_URL}/v1/audio/transcriptions",
         data=data,
         files={"file": (filename, audio)},
+        timeout=httpx.Timeout(config.JOB_TIMEOUT_SECONDS, connect=10),
     )
     _check(resp, "Speech to text")
     return resp.json()
 
 
-# -------------------------------------------------------------- diarization --
-async def diarize(audio: bytes, filename: str, doctor_embedding: list[float] | None) -> list[dict[str, Any]]:
-    """Speaker turns. With an enrolled doctor the matching voice is "Doctor" and the others
-    "Patient"; without one, two anonymous speakers."""
-    form: dict[str, str] = {"speaker_match_threshold": str(config.SPEAKER_MATCH_THRESHOLD)}
-    if doctor_embedding:
-        form.update(
-            reference_embedding=json.dumps(doctor_embedding),
-            reference_label="Doctor",
-            other_label="Patient",
-        )
-    else:
-        form["num_speakers"] = "2"
-    resp = await http().post(
-        f"{config.DIARIZATION_URL}/v1/diarize", data=form, files={"file": (filename, audio)}
-    )
-    _check(resp, "Diarization")
-    job_id = resp.json()["job_id"]
-    deadline = time.monotonic() + config.JOB_TIMEOUT_SECONDS
-    try:
-        while True:
-            await asyncio.sleep(config.DIARIZATION_POLL_SECONDS)
-            status = await http().get(f"{config.DIARIZATION_URL}/v1/diarize/{job_id}")
-            _check(status, "Diarization status")
-            job = status.json()
-            if job.get("status") == "completed":
-                return list((job.get("result") or {}).get("segments") or [])
-            if job.get("status") in ("error", "cancelled"):
-                raise ServiceError(f"Diarization {job.get('status')}: {job.get('error') or ''}".strip())
-            if time.monotonic() > deadline:
-                raise ServiceError("Diarization timed out")
-    except asyncio.CancelledError:
-        await http().delete(f"{config.DIARIZATION_URL}/v1/diarize/{job_id}")
-        raise
-
-
 async def voice_embedding(audio: bytes, filename: str) -> list[float]:
-    resp = await http().post(f"{config.DIARIZATION_URL}/v1/embedding", files={"file": (filename, audio)})
+    resp = await http().post(f"{config.STT_URL}/v1/audio/speaker-embedding", files={"file": (filename, audio)})
+    if resp.status_code == 422:
+        raise ServiceError("No speech was found in the voice sample")
     _check(resp, "Voice enrolment")
     return list(resp.json()["embedding"])
 
@@ -145,7 +117,6 @@ async def chat_stream(system: str, user: str) -> AsyncIterator[dict[str, Any]]:
 # ------------------------------------------------------------------- health --
 HEALTH_CHECKS = {
     "speech-to-text": ("Speech to text", lambda: f"{config.STT_URL}/health"),
-    "diarization": ("Speaker identification", lambda: f"{config.DIARIZATION_URL}/healthcheck"),
     "text-generation": ("Clinical note writer", lambda: f"{config.LLM_URL}/v2/health/ready"),
     "encounter-store": ("Encounter store", lambda: f"{config.STORE_URL}/healthz"),
 }

@@ -7,8 +7,7 @@
 #   ui                 Next.js, presentation only
 #   scribe-aggregator  the Medical Scribe API: encounters, pipeline, live, SOAP note, metrics
 #   encounter-store    encounters and doctor profiles (SQLite)
-#   speech-to-text     intel/audio-analyzer (OEP, Whisper on OpenVINO)  GPU / NPU / CPU
-#   diarization        pyannote speaker diarization, voice enrolment    CPU / Intel GPU (xpu)
+#   speech-to-text     intel/audio-analyzer: Whisper + pyannote speakers  GPU / NPU / CPU
 #   text-generation    OpenVINO Model Server, model loaded at start     GPU / NPU / CPU
 #   metrics-collector  performance-tools: CPU, GPU, NPU, memory, power  (host network, privileged)
 #
@@ -21,8 +20,8 @@ x-proxy-env: &proxy-env
   https_proxy: ${https_proxy:-}
   HTTP_PROXY: ${http_proxy:-}
   HTTPS_PROXY: ${https_proxy:-}
-  no_proxy: localhost,127.0.0.1,speech-to-text,diarization,text-generation,encounter-store,scribe-aggregator,ui,gateway
-  NO_PROXY: localhost,127.0.0.1,speech-to-text,diarization,text-generation,encounter-store,scribe-aggregator,ui,gateway
+  no_proxy: localhost,127.0.0.1,speech-to-text,text-generation,encounter-store,scribe-aggregator,ui,gateway
+  NO_PROXY: localhost,127.0.0.1,speech-to-text,text-generation,encounter-store,scribe-aggregator,ui,gateway
 
 x-build-args: &build-args
   BASE_IMAGE: ${REGISTRY:-intel/}hl-ai-medical-scribe-base:${TAG:-latest}
@@ -103,18 +102,20 @@ services:
 
   speech-to-text:
     <<: [*service, *accelerators]
-    # The published OEP audio-analyzer image, as is; services/speech-to-text/entrypoint.sh applies
+    # OEP audio-analyzer with whole-file diarization and speaker profiles (edge-ai-libraries
+    # feature/audio-analyzer-speaker-profiles); services/speech-to-text/entrypoint.sh applies
     # configs/model-config.yaml.
-    image: intel/audio-analyzer:${AUDIO_ANALYZER_TAG:-2026.3.0-rc2}
+    image: intel/audio-analyzer:${AUDIO_ANALYZER_TAG:-medical-scribe}
     entrypoint: ["/bin/sh", "/opt/scribe/entrypoint.sh"]
     environment:
       <<: *proxy-env
+      HF_TOKEN: ${HF_TOKEN:-}
       AUDIO_ANALYZER_SERVER_PORT: "8002"
     volumes:
       - ./services/speech-to-text/entrypoint.sh:/opt/scribe/entrypoint.sh:ro
       - ./libs/scripts/model_config.py:/opt/scribe/model_config.py:ro
       - ./configs:/configs:ro
-      # Whisper source download and OpenVINO export (models/stt/openvino/<name>-<precision>).
+      # Whisper and pyannote downloads, OpenVINO exports (models/stt/openvino/<name>-<precision>).
       - ${MODELS_DIR:-./models}/stt:/app/audio_analyzer/models
       # Uploaded audio per request: clinical data, kept on the host data folder, not in the container.
       - ${DATA_DIR:-./data}/speech-to-text:/app/audio_analyzer/storage
@@ -126,28 +127,6 @@ services:
       retries: 5
       # First start downloads Whisper and exports it to OpenVINO.
       start_period: 20m
-
-  diarization:
-    <<: [*service, *accelerators]
-    image: ${REGISTRY:-intel/}hl-ai-medical-scribe-diarization:${TAG:-latest}
-    build:
-      context: .
-      dockerfile: services/diarization/Dockerfile
-      args: *build-args
-    environment:
-      <<: *proxy-env
-      HF_TOKEN: ${HF_TOKEN:-}
-    volumes:
-      - ./configs:/configs:ro
-      - ${MODELS_DIR:-./models}:/opt/medical-scribe/models
-      - ${DATA_DIR:-./data}/diarization:/opt/medical-scribe/data/diarization
-      - ${LOGS_DIR:-./logs}:/opt/medical-scribe/logs
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8003/healthcheck"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-      start_period: 10m
 
   text-generation:
     <<: [*service, *accelerators]
