@@ -1,9 +1,0 @@
-.env
-models/
-data/
-logs/
-metrics/
-**/node_modules/
-**/.next/
-**/__pycache__/
-**/.venv/
